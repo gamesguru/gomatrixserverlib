@@ -4,7 +4,6 @@ require (
 	github.com/goccy/go-yaml v1.19.2
 	github.com/google/go-cmp v0.7.0
 	github.com/hashicorp/go-set/v3 v3.0.1
-	github.com/matrix-org/gomatrix v0.0.0-20220926102614-ceba4d9f7530
 	github.com/matrix-org/util v0.0.0-20221111132719-399730281e66
 	github.com/miekg/dns v1.1.66
 	github.com/oleiade/lane/v2 v2.0.0

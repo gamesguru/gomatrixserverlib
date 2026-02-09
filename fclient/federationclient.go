@@ -10,7 +10,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/matrix-org/gomatrix"
 	"golang.org/x/crypto/ed25519"
 
 	"codefloe.com/pat-s/gomatrixserverlib"
@@ -262,7 +261,7 @@ func (ac *federationClient) sendJoin(
 		return
 	}
 	err = ac.doRequest(ctx, req, &res)
-	var gerr gomatrix.HTTPError
+	var gerr spec.HTTPError
 	ok := errors.As(err, &gerr)
 	if ok && gerr.Code == 404 {
 		// fallback to v1 which returns [200, body]
@@ -354,7 +353,7 @@ func (ac *federationClient) SendLeave(
 	}
 	res := struct{}{}
 	err = ac.doRequest(ctx, req, &res)
-	var gerr gomatrix.HTTPError
+	var gerr spec.HTTPError
 	ok := errors.As(err, &gerr)
 	if ok && gerr.Code == 404 {
 		// fallback to v1 which returns [200, body]
@@ -405,7 +404,7 @@ func (ac *federationClient) SendInviteV2(
 	}
 	err = ac.doRequest(ctx, req, &res)
 
-	var gerr gomatrix.HTTPError
+	var gerr spec.HTTPError
 	ok := errors.As(err, &gerr)
 	if ok && gerr.Code == 404 {
 		// fallback to v1 which returns [200, body]
@@ -530,7 +529,7 @@ func (ac *federationClient) Peek(
 // LookupRoomAlias looks up a room alias hosted on the remote server.
 // The domain part of the roomAlias must match the name of the server it is
 // being looked up on.
-// If the room alias doesn't exist on the remote server then a 404 gomatrix.HTTPError
+// If the room alias doesn't exist on the remote server then a 404 spec.HTTPError
 // is returned.
 func (ac *federationClient) LookupRoomAlias(
 	ctx context.Context, origin, s spec.ServerName, roomAlias string,
@@ -736,7 +735,7 @@ func (ac *federationClient) RoomHierarchy(
 	req := NewFederationRequest("GET", origin, dst, path)
 	err = ac.doRequest(ctx, req, &res)
 	if err != nil {
-		var gerr gomatrix.HTTPError
+		var gerr spec.HTTPError
 		ok := errors.As(err, &gerr)
 		if ok && gerr.Code == 404 {
 			// fallback to unstable endpoint

@@ -31,7 +31,6 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/matrix-org/gomatrix"
 	"github.com/matrix-org/util"
 	"github.com/sirupsen/logrus"
 
@@ -589,8 +588,8 @@ func (fc *Client) CreateMediaDownloadRequest(
 // DoRequestAndParseResponse calls DoHTTPRequest and then decodes the response.
 //
 // If the HTTP response is not a 200, an attempt is made to parse the response
-// body into a gomatrix.RespError. In any case, a non-200 response will result
-// in a gomatrix.HTTPError.
+// body into a spec.RespError. In any case, a non-200 response will result
+// in a spec.HTTPError.
 func (fc *Client) DoRequestAndParseResponse(
 	ctx context.Context,
 	req *http.Request,
@@ -613,19 +612,19 @@ func (fc *Client) DoRequestAndParseResponse(
 		}
 
 		var wrap error
-		var respErr gomatrix.RespError
+		var respErr spec.RespError
 		if _ = json.Unmarshal(contents, &respErr); respErr.ErrCode != "" {
 			wrap = respErr
 		}
 
-		// If we failed to decode as RespError, don't just drop the HTTP body, include it in the
+		// If we failed to decode as spec.RespError, don't just drop the HTTP body, include it in the
 		// HTTP error instead (e.g proxy errors which return HTML).
 		msg := fmt.Sprintf("Failed to %s JSON (hostname %q path %q)", req.Method, req.Host, req.URL.Path)
 		if wrap == nil {
 			msg += ": " + string(contents)
 		}
 
-		return gomatrix.HTTPError{
+		return spec.HTTPError{
 			Code:         response.StatusCode,
 			Message:      msg,
 			WrappedError: wrap,
