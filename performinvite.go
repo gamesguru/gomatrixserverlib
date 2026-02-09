@@ -57,10 +57,10 @@ type PerformInviteInput struct {
 func PerformInvite(ctx context.Context, input PerformInviteInput, fedClient FederatedInviteClient) (PDU, error) {
 	if input.MembershipQuerier == nil || input.StateQuerier == nil || input.UserIDQuerier == nil ||
 		input.SenderIDQuerier == nil || input.SenderIDCreator == nil || input.EventQuerier == nil {
-		panic("Missing valid Querier")
+		return nil, fmt.Errorf("PerformInvite: missing valid Querier")
 	}
 	if ctx == nil {
-		panic("Missing valid Context")
+		return nil, fmt.Errorf("PerformInvite: missing valid Context")
 	}
 
 	logger := createInviteLogger(ctx, input.RoomID, input.Inviter, input.Invitee, "")

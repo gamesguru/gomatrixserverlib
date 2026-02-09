@@ -51,11 +51,11 @@ type HandleMakeJoinResponse struct {
 
 func HandleMakeJoin(input HandleMakeJoinInput) (*HandleMakeJoinResponse, error) {
 	if input.RoomQuerier == nil || input.UserIDQuerier == nil {
-		panic("Missing valid Querier")
+		return nil, fmt.Errorf("HandleMakeJoin: missing valid Querier")
 	}
 
 	if input.Context == nil {
-		panic("Missing valid Context")
+		return nil, fmt.Errorf("HandleMakeJoin: missing valid Context")
 	}
 
 	// Check that the room that the remote side is trying to join is actually
@@ -352,19 +352,19 @@ type HandleSendJoinResponse struct {
 //nolint:gocyclo
 func HandleSendJoin(input HandleSendJoinInput) (*HandleSendJoinResponse, error) {
 	if input.Verifier == nil {
-		panic("Missing valid JSONVerifier")
+		return nil, fmt.Errorf("HandleSendJoin: missing valid JSONVerifier")
 	}
 	if input.MembershipQuerier == nil {
-		panic("Missing valid StateQuerier")
+		return nil, fmt.Errorf("HandleSendJoin: missing valid StateQuerier")
 	}
 	if input.UserIDQuerier == nil {
-		panic("Missing valid UserIDQuerier")
+		return nil, fmt.Errorf("HandleSendJoin: missing valid UserIDQuerier")
 	}
 	if input.Context == nil {
-		panic("Missing valid Context")
+		return nil, fmt.Errorf("HandleSendJoin: missing valid Context")
 	}
 	if input.StoreSenderIDFromPublicID == nil {
-		panic("Missing valid StoreSenderID")
+		return nil, fmt.Errorf("HandleSendJoin: missing valid StoreSenderID")
 	}
 
 	verImpl, err := GetRoomVersion(input.RoomVersion)
