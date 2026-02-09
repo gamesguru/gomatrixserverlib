@@ -1,0 +1,60 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+jobs:
+  release:
+    name: Create release
+    runs-on: ubuntu-latest
+    # renovate: datasource=docker depName=thegeeklab/git-sv
+    container: cr.codefloe.com/docker.io/thegeeklab/git-sv:2.0.9
+    steps:
+      - name: Install dependencies
+        run: apk add --no-cache curl jq git nodejs
+
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Generate changelog
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          git-sv rn -t "${{ github.ref_name }}" -o release-notes.md
+          cat release-notes.md
+
+      - name: Create release
+        env:
+          ISSUE_TOKEN: ${{ secrets.ISSUE_TOKEN }}
+        run: |
+          TAG="${{ github.ref_name }}"
+
+          # Create release via API
+          RELEASE_RESPONSE=$(curl -sf -X POST \
+            "${GITHUB_SERVER_URL}/api/v1/repos/${GITHUB_REPOSITORY}/releases" \
+            -H "Authorization: token $ISSUE_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d "$(jq -n \
+              --arg tag "$TAG" \
+              --arg name "$TAG" \
+              --arg body "$(cat release-notes.md)" \
+              '{tag_name: $tag, name: $name, body: $body, draft: false, prerelease: false}')")
+
+          RELEASE_ID=$(echo "$RELEASE_RESPONSE" | jq -r '.id')
+          echo "Created release with ID: $RELEASE_ID"
+
+          # Upload assets
+          for file in dist/*; do
+            filename=$(basename "$file")
+            echo "Uploading $filename..."
+            curl -sf -X POST \
+              "${GITHUB_SERVER_URL}/api/v1/repos/${GITHUB_REPOSITORY}/releases/${RELEASE_ID}/assets?name=${filename}" \
+              -H "Authorization: token $ISSUE_TOKEN" \
+              -H "Content-Type: application/octet-stream" \
+              --data-binary "@$file"
+          done
+
+          echo "Release created: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/releases/tag/$TAG"
