@@ -262,10 +262,11 @@ func isAllowed(ip net.IP, allowCIDRs []string, denyCIDRs []string) bool {
 	if inRange(ip, denyCIDRs) {
 		return false
 	}
-	if inRange(ip, allowCIDRs) {
+	// When no allow list is configured, allow all non-denied IPs.
+	if len(allowCIDRs) == 0 {
 		return true
 	}
-	return false // "should never happen"
+	return inRange(ip, allowCIDRs)
 }
 
 func inRange(ip net.IP, cidrs []string) bool {
