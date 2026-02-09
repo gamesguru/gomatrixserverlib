@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/matrix-org/util"
 	"github.com/tidwall/sjson"
 	"golang.org/x/crypto/ed25519"
 
+	"codefloe.com/pat-s/gomatrixserverlib/internal"
 	"codefloe.com/pat-s/gomatrixserverlib/spec"
 )
 
@@ -173,7 +173,7 @@ func (eb *EventBuilder) Build(
 	}
 	eventStruct.EventBuilder = *eb
 	if eventIDFormat == EventIDFormatV1 {
-		eventStruct.EventID = fmt.Sprintf("$%s:%s", util.RandomString(16), origin) //nolint:mnd
+		eventStruct.EventID = fmt.Sprintf("$%s:%s", internal.RandomString(16), origin) //nolint:mnd
 	}
 	if eb.version.DomainlessRoomIDs() && eb.Type == spec.MRoomCreate && eb.StateKey != nil && eb.RoomID != "" {
 		return nil, fmt.Errorf("EventBuilder.Build: create event must have no room ID but %s was provided", eb.RoomID)

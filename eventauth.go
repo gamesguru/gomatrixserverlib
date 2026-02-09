@@ -21,9 +21,9 @@ import (
 	"slices"
 	"strings"
 
-	"github.com/matrix-org/util"
 	"golang.org/x/crypto/ed25519"
 
+	"codefloe.com/pat-s/gomatrixserverlib/internal"
 	"codefloe.com/pat-s/gomatrixserverlib/spec"
 )
 
@@ -134,8 +134,8 @@ func StateNeededForProtoEvent(protoEvent *ProtoEvent) (result StateNeeded, err e
 		}
 	}
 	err = accumulateStateNeeded(&result, protoEvent.Type, spec.SenderID(protoEvent.SenderID), protoEvent.StateKey, content)
-	result.Member = util.UniqueStrings(result.Member)
-	result.ThirdPartyInvite = util.UniqueStrings(result.ThirdPartyInvite)
+	result.Member = internal.UniqueStrings(result.Member)
+	result.ThirdPartyInvite = internal.UniqueStrings(result.ThirdPartyInvite)
 	return
 }
 
@@ -154,8 +154,8 @@ func StateNeededForAuth(events []PDU) (result StateNeeded) {
 	}
 
 	// Deduplicate the state keys.
-	result.Member = util.UniqueStrings(result.Member)
-	result.ThirdPartyInvite = util.UniqueStrings(result.ThirdPartyInvite)
+	result.Member = internal.UniqueStrings(result.Member)
+	result.ThirdPartyInvite = internal.UniqueStrings(result.ThirdPartyInvite)
 	return
 }
 

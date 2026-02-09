@@ -22,8 +22,7 @@ import (
 	"fmt"
 	"slices"
 
-	"github.com/matrix-org/util"
-
+	"codefloe.com/pat-s/gomatrixserverlib/internal"
 	"codefloe.com/pat-s/gomatrixserverlib/spec"
 )
 
@@ -86,7 +85,7 @@ func HandleMakeJoin(input HandleMakeJoinInput) (*HandleMakeJoinResponse, error) 
 		switch {
 		case err == nil:
 		case errors.As(err, &e):
-			util.GetLogger(input.Context).WithError(err).Error("checkRestrictedJoin failed")
+			internal.GetLogger(input.Context).WithError(err).Error("checkRestrictedJoin failed")
 			return nil, e
 		default:
 			return nil, spec.InternalServerError{Err: "checkRestrictedJoin failed"}
@@ -452,7 +451,7 @@ func HandleSendJoin(input HandleSendJoinInput) (*HandleSendJoinResponse, error) 
 	// Check that the event is signed by the server sending the request.
 	redacted, err := verImpl.RedactEventJSON(event.JSON())
 	if err != nil {
-		util.GetLogger(input.Context).WithError(err).Error("RedactEventJSON failed")
+		internal.GetLogger(input.Context).WithError(err).Error("RedactEventJSON failed")
 		return nil, spec.BadJSON("The event JSON could not be redacted")
 	}
 
@@ -464,7 +463,7 @@ func HandleSendJoin(input HandleSendJoinInput) (*HandleSendJoinResponse, error) 
 	}}
 	verifyResults, err := input.Verifier.VerifyJSONs(input.Context, verifyRequests)
 	if err != nil {
-		util.GetLogger(input.Context).WithError(err).Error("keys.VerifyJSONs failed")
+		internal.GetLogger(input.Context).WithError(err).Error("keys.VerifyJSONs failed")
 		return nil, spec.InternalServerError{}
 	}
 	if verifyResults[0].Error != nil {
@@ -495,11 +494,11 @@ func HandleSendJoin(input HandleSendJoinInput) (*HandleSendJoinResponse, error) 
 	if memberContent.AuthorisedVia != "" {
 		authorisedVia, err := spec.NewUserID(memberContent.AuthorisedVia, true)
 		if err != nil {
-			util.GetLogger(input.Context).WithError(err).Errorf("The authorizing username %q is invalid.", memberContent.AuthorisedVia)
+			internal.GetLogger(input.Context).WithError(err).Errorf("The authorizing username %q is invalid.", memberContent.AuthorisedVia)
 			return nil, spec.BadJSON(fmt.Sprintf("The authorizing username %q is invalid.", memberContent.AuthorisedVia))
 		}
 		if authorisedVia.Domain() != input.LocalServerName {
-			util.GetLogger(input.Context).Errorf("The authorizing username %q does not belong to this server.", authorisedVia.String())
+			internal.GetLogger(input.Context).Errorf("The authorizing username %q does not belong to this server.", authorisedVia.String())
 			return nil, spec.BadJSON(fmt.Sprintf("The authorizing username %q does not belong to this server.", authorisedVia.String()))
 		}
 	}

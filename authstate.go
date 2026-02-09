@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/matrix-org/util"
 	"github.com/sirupsen/logrus"
 
+	"codefloe.com/pat-s/gomatrixserverlib/internal"
 	"codefloe.com/pat-s/gomatrixserverlib/spec"
 )
 
@@ -234,7 +234,7 @@ func CheckStateResponse(
 	ctx context.Context, r StateResponse, roomVersion RoomVersion,
 	keyRing JSONVerifier, missingAuth EventProvider, userIDForSender spec.UserIDForSender,
 ) ([]PDU, []PDU, error) {
-	logger := util.GetLogger(ctx)
+	logger := internal.GetLogger(ctx)
 	authEvents := r.GetAuthEvents().UntrustedEvents(roomVersion)
 	stateEvents := r.GetStateEvents().UntrustedEvents(roomVersion)
 	var allEvents []PDU

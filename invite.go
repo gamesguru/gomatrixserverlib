@@ -19,9 +19,9 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/matrix-org/util"
 	"github.com/sirupsen/logrus"
 
+	"codefloe.com/pat-s/gomatrixserverlib/internal"
 	"codefloe.com/pat-s/gomatrixserverlib/spec"
 )
 
@@ -131,7 +131,7 @@ func GenerateStrippedState(
 func abortIfAlreadyJoined(ctx context.Context, roomID spec.RoomID, invitedUser spec.SenderID, membershipQuerier MembershipQuerier) error {
 	membership, err := membershipQuerier.CurrentMembership(ctx, roomID, invitedUser)
 	if err != nil {
-		util.GetLogger(ctx).WithError(err).Error("failed getting user membership")
+		internal.GetLogger(ctx).WithError(err).Error("failed getting user membership")
 		return spec.InternalServerError{}
 	}
 	isAlreadyJoined := (membership == spec.Join)
@@ -164,14 +164,14 @@ func abortIfAlreadyJoined(ctx context.Context, roomID spec.RoomID, invitedUser s
 		// For now we will implement option 2. Since in the abesence of a retry
 		// mechanism it will be equivalent to option 1, and we don't have a
 		// signaling mechanism to implement option 3.
-		util.GetLogger(ctx).Error("user is already joined to room")
+		internal.GetLogger(ctx).Error("user is already joined to room")
 		return spec.Forbidden("user is already joined to room")
 	}
 	return nil
 }
 
 func createInviteLogger(ctx context.Context, roomID spec.RoomID, inviter spec.UserID, invitee spec.UserID, eventID string) *logrus.Entry {
-	return util.GetLogger(ctx).WithFields(map[string]any{
+	return internal.GetLogger(ctx).WithFields(map[string]any{
 		"inviter":  inviter.String(),
 		"invitee":  invitee.String(),
 		"room_id":  roomID.String(),

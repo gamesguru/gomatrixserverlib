@@ -8,10 +8,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/matrix-org/util"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/crypto/ed25519"
 
+	"codefloe.com/pat-s/gomatrixserverlib/internal"
 	"codefloe.com/pat-s/gomatrixserverlib/spec"
 )
 
@@ -173,7 +173,7 @@ type JSONVerifier interface {
 
 // VerifyJSONs implements JSONVerifier.
 func (k KeyRing) VerifyJSONs(ctx context.Context, requests []VerifyJSONRequest) ([]VerifyJSONResult, error) { //nolint: gocyclo
-	logger := util.GetLogger(ctx)
+	logger := internal.GetLogger(ctx)
 	results := make([]VerifyJSONResult, len(requests))
 	keyIDs := make([][]KeyID, len(requests))
 

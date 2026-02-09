@@ -11,10 +11,10 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"github.com/matrix-org/util"
 	"golang.org/x/crypto/ed25519"
 
 	"codefloe.com/pat-s/gomatrixserverlib"
+	"codefloe.com/pat-s/gomatrixserverlib/internal"
 	"codefloe.com/pat-s/gomatrixserverlib/spec"
 )
 
@@ -208,11 +208,11 @@ func VerifyHTTPRequest(
 	destination spec.ServerName, // the default server name, if none other is given
 	isLocalServerName func(spec.ServerName) bool, // optional, verify secondary server names
 	keys gomatrixserverlib.JSONVerifier,
-) (*FederationRequest, util.JSONResponse) {
+) (*FederationRequest, JSONResponse) {
 	request, err := readHTTPRequest(req)
 	if err != nil {
-		util.GetLogger(req.Context()).WithError(err).Print("Error parsing HTTP headers")
-		return nil, util.MessageResponse(http.StatusBadRequest, "Bad Request")
+		internal.GetLogger(req.Context()).WithError(err).Print("Error parsing HTTP headers")
+		return nil, MessageResponse(http.StatusBadRequest, "Bad Request")
 	}
 	if request.fields.Destination != "" {
 		switch {
@@ -220,8 +220,8 @@ func VerifyHTTPRequest(
 			fallthrough
 		case isLocalServerName == nil && destination != request.fields.Destination:
 			message := fmt.Sprintf("Unrecognized server name %q for Destination", request.fields.Destination)
-			util.GetLogger(req.Context()).Warn(message)
-			return nil, util.MessageResponse(http.StatusBadRequest, message)
+			internal.GetLogger(req.Context()).Warn(message)
+			return nil, MessageResponse(http.StatusBadRequest, message)
 		}
 	} else if request.fields.Destination == "" {
 		request.fields.Destination = destination
@@ -231,20 +231,20 @@ func VerifyHTTPRequest(
 	// So we can just serialize the request fields using the default marshaller
 	toVerify, err := json.Marshal(request.fields)
 	if err != nil {
-		util.GetLogger(req.Context()).WithError(err).Print("Error parsing JSON")
-		return nil, util.MessageResponse(http.StatusBadRequest, "Invalid JSON")
+		internal.GetLogger(req.Context()).WithError(err).Print("Error parsing JSON")
+		return nil, MessageResponse(http.StatusBadRequest, "Invalid JSON")
 	}
 
 	if request.Origin() == "" {
 		message := "Missing \"Authorization: X-Matrix ...\" HTTP header"
-		util.GetLogger(req.Context()).WithError(err).Print(message)
-		return nil, util.MessageResponse(http.StatusUnauthorized, message)
+		internal.GetLogger(req.Context()).WithError(err).Print(message)
+		return nil, MessageResponse(http.StatusUnauthorized, message)
 	}
 	_, _, valid := spec.ParseAndValidateServerName(request.Origin())
 	if !valid {
 		message := "Invalid server name for Origin"
-		util.GetLogger(req.Context()).WithError(err).Print(message)
-		return nil, util.MessageResponse(http.StatusBadRequest, message)
+		internal.GetLogger(req.Context()).WithError(err).Print(message)
+		return nil, MessageResponse(http.StatusBadRequest, message)
 	}
 
 	results, err := keys.VerifyJSONs(req.Context(), []gomatrixserverlib.VerifyJSONRequest{{
@@ -255,16 +255,16 @@ func VerifyHTTPRequest(
 	}})
 	if err != nil {
 		message := "Error authenticating request"
-		util.GetLogger(req.Context()).WithError(err).Print(message)
-		return nil, util.MessageResponse(http.StatusInternalServerError, message)
+		internal.GetLogger(req.Context()).WithError(err).Print(message)
+		return nil, MessageResponse(http.StatusInternalServerError, message)
 	}
 	if results[0].Error != nil {
 		message := "Invalid request signature"
-		util.GetLogger(req.Context()).WithError(results[0].Error).Print(message)
-		return nil, util.MessageResponse(http.StatusUnauthorized, message)
+		internal.GetLogger(req.Context()).WithError(results[0].Error).Print(message)
+		return nil, MessageResponse(http.StatusUnauthorized, message)
 	}
 
-	return request, util.JSONResponse{Code: http.StatusOK, JSON: struct{}{}}
+	return request, JSONResponse{Code: http.StatusOK, JSON: struct{}{}}
 }
 
 // Returns an error if there was a problem reading the content of the request.

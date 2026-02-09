@@ -31,10 +31,10 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/matrix-org/util"
 	"github.com/sirupsen/logrus"
 
 	"codefloe.com/pat-s/gomatrixserverlib"
+	"codefloe.com/pat-s/gomatrixserverlib/internal"
 	"codefloe.com/pat-s/gomatrixserverlib/spec"
 )
 
@@ -381,7 +381,7 @@ retryResolution:
 		if err == nil {
 			return resp, nil
 		}
-		util.GetLogger(r.Context()).Debugf("Error sending request to %s: %v",
+		internal.GetLogger(r.Context()).Debugf("Error sending request to %s: %v",
 			u.String(), err)
 	}
 
@@ -645,14 +645,14 @@ func (fc *Client) DoRequestAndParseResponse(
 // If the returned error is nil, the Response will contain a non-nil
 // Body which the caller is expected to close.
 func (fc *Client) DoHTTPRequest(ctx context.Context, req *http.Request) (*http.Response, error) {
-	reqID := util.RandomString(12) //nolint:mnd
-	logger := util.GetLogger(ctx).WithFields(logrus.Fields{
+	reqID := internal.RandomString(12) //nolint:mnd
+	logger := internal.GetLogger(ctx).WithFields(logrus.Fields{
 		"out.req.ID":     reqID,
 		"out.req.method": req.Method,
 		"out.req.uri":    req.URL,
 	})
 	logger.Trace("Outgoing request")
-	newCtx := util.ContextWithLogger(ctx, logger)
+	newCtx := internal.ContextWithLogger(ctx, logger)
 	if fc.userAgent != "" {
 		req.Header.Set("User-Agent", fc.userAgent)
 	}
