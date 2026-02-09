@@ -545,7 +545,7 @@ type RoomHierarchyRoom struct {
 	PublicRoom
 	ChildrenState  []RoomHierarchyStrippedEvent `json:"children_state"`
 	AllowedRoomIDs []string                     `json:"allowed_room_ids,omitempty"`
-	RoomType       string                       `json:"room_type"`
+	RoomType       *string                      `json:"room_type,omitempty"`
 }
 
 // RoomHierarchyResponse is the HTTP response body for the federation /unstable/spaces/{roomID} endpoint
