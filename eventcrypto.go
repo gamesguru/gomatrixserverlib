@@ -207,7 +207,7 @@ func validateMXIDMappingSignatures(ctx context.Context, e PDU, mapping MXIDMappi
 }
 
 func extractAuthorisedViaServerName(content []byte) (spec.ServerName, error) {
-	if v := gjson.GetBytes(content, "join_authorized_via_users_server"); v.Exists() {
+	if v := gjson.GetBytes(content, "join_authorised_via_users_server"); v.Exists() { //nolint:misspell // Matrix spec uses British spelling
 		_, serverName, err := SplitID('@', v.String())
 		if err != nil {
 			return "", fmt.Errorf("failed to split authorized server: %w", err)
