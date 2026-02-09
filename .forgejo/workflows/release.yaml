@@ -46,15 +46,4 @@ jobs:
           RELEASE_ID=$(echo "$RELEASE_RESPONSE" | jq -r '.id')
           echo "Created release with ID: $RELEASE_ID"
 
-          # Upload assets
-          for file in dist/*; do
-            filename=$(basename "$file")
-            echo "Uploading $filename..."
-            curl -sf -X POST \
-              "${GITHUB_SERVER_URL}/api/v1/repos/${GITHUB_REPOSITORY}/releases/${RELEASE_ID}/assets?name=${filename}" \
-              -H "Authorization: token $ISSUE_TOKEN" \
-              -H "Content-Type: application/octet-stream" \
-              --data-binary "@$file"
-          done
-
           echo "Release created: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/releases/tag/$TAG"
