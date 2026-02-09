@@ -235,6 +235,16 @@ func checkRestrictedJoin(
 		creators = CreatorsFromCreateEvent(createEvent)
 	}
 
+	// Get the locally joined users from the TARGET room. The authorizing user
+	// must be a member of this room per the Matrix spec (MSC3083).
+	targetRoomInfo, err := roomQuerier.RestrictedRoomJoinInfo(ctx, roomID, senderID, localServerName)
+	if err != nil {
+		return "", fmt.Errorf("roomQuerier.RestrictedRoomJoinInfo: %w", err)
+	}
+	if targetRoomInfo == nil || !targetRoomInfo.LocalServerInRoom {
+		return "", spec.UnableToAuthoriseJoin("This server is not joined to the target room.")
+	}
+
 	resident := true
 	// Step through the join rules and see if the user matches any of them.
 	for _, rule := range joinRules.Allow {
@@ -244,42 +254,42 @@ func checkRestrictedJoin(
 			continue
 		}
 
-		// See if the room exists. If it doesn't exist or if it's a stub
+		// See if the allowed room exists. If it doesn't exist or if it's a stub
 		// room entry then we can't check memberships.
-		roomID, err := spec.NewRoomID(rule.RoomID)
+		allowedRoomID, err := spec.NewRoomID(rule.RoomID)
 		if err != nil {
 			continue
 		}
 
-		// First of all work out if *we* are still in the room, otherwise
+		// First of all work out if *we* are still in the allowed room, otherwise
 		// it's possible that the memberships will be out of date.
-		targetRoomInfo, err := roomQuerier.RestrictedRoomJoinInfo(ctx, *roomID, senderID, localServerName)
-		if err != nil || targetRoomInfo == nil || !targetRoomInfo.LocalServerInRoom {
-			// If we aren't in the room, we can no longer tell if the room
+		allowedRoomInfo, err := roomQuerier.RestrictedRoomJoinInfo(ctx, *allowedRoomID, senderID, localServerName)
+		if err != nil || allowedRoomInfo == nil || !allowedRoomInfo.LocalServerInRoom {
+			// If we aren't in the allowed room, we can no longer tell if the room
 			// memberships are up-to-date.
 			resident = false
 			continue
 		}
 
-		// At this point we're happy that we are in the room, so now let's
-		// see if the target user is in the room.
-		// If the user is not in the room then we will skip this rule.
-		if !targetRoomInfo.UserJoinedToRoom {
+		// At this point we're happy that we are in the allowed room, so now let's
+		// see if the joining user is in the allowed room.
+		// If the user is not in the allowed room then we will skip this rule.
+		if !allowedRoomInfo.UserJoinedToRoom {
 			continue
 		}
 
-		// The user is in the room, so now we will need to authorize the
-		// join using the user ID of one of our own users in the room. Pick
-		// one.
-		if err != nil || len(targetRoomInfo.JoinedUsers) == 0 {
-			// There should always be more than one join event at this point
-			// because we are gated behind GetLocalServerInRoom, but y'know,
-			// sometimes strange things happen.
+		// The joining user is in the allowed room, so now we will need to authorize
+		// the join using the user ID of one of our own users in the TARGET room
+		// (not the allowed room). The authorizing user must be a member of the
+		// target room per the Matrix spec.
+		if len(targetRoomInfo.JoinedUsers) == 0 {
+			// There should always be at least one join event at this point
+			// because we are gated behind LocalServerInRoom check above.
 			continue
 		}
 
-		// For each of the joined users, let's see if we can get a valid
-		// membership event.
+		// For each of the joined users in the TARGET room, let's see if we can
+		// get a valid membership event.
 		for _, memberEvent := range targetRoomInfo.JoinedUsers {
 			if memberEvent.Type() != spec.MRoomMember || memberEvent.StateKey() == nil {
 				continue // shouldn't happen
@@ -297,8 +307,8 @@ func checkRestrictedJoin(
 			// The join rules restrict membership, our server is in the relevant
 			// rooms and the user was allowed to join because they belong to one
 			// of the allowed rooms. Return one of our own local users
-			// from within the room to use as the authorizing user ID, so that it
-			// can be referred to from within the membership content.
+			// from within the TARGET room to use as the authorizing user ID, so
+			// that it can be referred to from within the membership content.
 			return userID, nil
 		}
 	}
