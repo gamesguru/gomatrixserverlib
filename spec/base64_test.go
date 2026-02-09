@@ -20,7 +20,7 @@ import (
 	"encoding/json"
 	"testing"
 
-	"gopkg.in/yaml.v2"
+	"github.com/goccy/go-yaml"
 )
 
 func TestMarshalBase64(t *testing.T) {
