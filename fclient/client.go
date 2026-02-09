@@ -172,7 +172,6 @@ const (
 	destinationTripperReapInterval = time.Minute     // how often to check for dead entries
 )
 
-//nolint:maligned
 type destinationTripper struct {
 	// transports maps an TLS server name with an HTTP transport.
 	transports      map[string]*destinationTripperTransport
