@@ -50,6 +50,8 @@ jobs:
           cache: true
       - name: Run tests
         run: go test -race -v ./...
+        env:
+          CGO_ENABLED: '1'
 
   tests-done:
     name: Tests passed
