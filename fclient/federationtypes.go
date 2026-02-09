@@ -136,6 +136,12 @@ type PublicRoom struct {
 	JoinRule string `json:"join_rule,omitempty"`
 	// The type of the room.
 	RoomType string `json:"room_type,omitempty"`
+	// The encryption algorithm used in the room, if encrypted (MSC3266).
+	// Uses unstable prefix until MSC3266 is merged.
+	Encryption string `json:"im.nheko.summary.encryption,omitempty"`
+	// The room version (MSC3266).
+	// Uses unstable prefix until MSC3266 is merged.
+	RoomVersion string `json:"im.nheko.summary.room_version,omitempty"`
 }
 
 // A RespEventAuth is the content of a response to GET /_matrix/federation/v1/event_auth/{roomID}/{eventID}.
