@@ -11,8 +11,9 @@ import (
 	"time"
 
 	"github.com/matrix-org/gomatrix"
-	"github.com/matrix-org/gomatrixserverlib/spec"
 	"github.com/stretchr/testify/assert"
+
+	"codefloe.com/pat-s/gomatrixserverlib/spec"
 )
 
 type TestMakeJoinResponse struct {
@@ -73,6 +74,7 @@ func (t *TestFederatedJoinClient) MakeJoin(ctx context.Context, origin, s spec.S
 
 	return &TestMakeJoinResponse{joinEvent: t.joinEventBuilder, roomVersion: t.roomVersion}, nil
 }
+
 func (t *TestFederatedJoinClient) SendJoin(ctx context.Context, origin, s spec.ServerName, event PDU) (res SendJoinResponse, err error) {
 	if t.shouldSendFail {
 		return nil, gomatrix.HTTPError{}
@@ -138,8 +140,8 @@ func TestPerformJoin(t *testing.T) {
 		RoomID:     roomID.String(),
 		Type:       "m.room.create",
 		StateKey:   &stateKey,
-		PrevEvents: []interface{}{},
-		AuthEvents: []interface{}{},
+		PrevEvents: []any{},
+		AuthEvents: []any{},
 		Depth:      0,
 		Content:    spec.RawJSON(`{"creator":"@user:server","m.federate":true,"room_version":"10"}`),
 		Unsigned:   spec.RawJSON(""),
@@ -155,8 +157,8 @@ func TestPerformJoin(t *testing.T) {
 		RoomID:     roomID.String(),
 		Type:       "m.room.member",
 		StateKey:   &stateKey,
-		PrevEvents: []interface{}{createEvent.EventID()},
-		AuthEvents: []interface{}{createEvent.EventID()},
+		PrevEvents: []any{createEvent.EventID()},
+		AuthEvents: []any{createEvent.EventID()},
 		Depth:      1,
 		Content:    spec.RawJSON(`{"membership":"join"}`),
 		Unsigned:   spec.RawJSON(""),
@@ -346,8 +348,8 @@ func TestPerformJoinPseudoID(t *testing.T) {
 		RoomID:     roomID.String(),
 		Type:       "m.room.create",
 		StateKey:   &stateKey,
-		PrevEvents: []interface{}{},
-		AuthEvents: []interface{}{},
+		PrevEvents: []any{},
+		AuthEvents: []any{},
 		Depth:      1,
 		Content:    crBytes,
 		Unsigned:   spec.RawJSON(""),
@@ -363,8 +365,8 @@ func TestPerformJoinPseudoID(t *testing.T) {
 		RoomID:     roomID.String(),
 		Type:       "m.room.member",
 		StateKey:   &stateKey,
-		PrevEvents: []interface{}{createEvent.EventID()},
-		AuthEvents: []interface{}{createEvent.EventID()},
+		PrevEvents: []any{createEvent.EventID()},
+		AuthEvents: []any{createEvent.EventID()},
 		Depth:      2,
 		Content:    contentBytes,
 		Unsigned:   spec.RawJSON(""),

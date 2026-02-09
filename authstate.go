@@ -4,9 +4,10 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/matrix-org/gomatrixserverlib/spec"
 	"github.com/matrix-org/util"
 	"github.com/sirupsen/logrus"
+
+	"codefloe.com/pat-s/gomatrixserverlib/spec"
 )
 
 // StateProvider is capable of returning the room state at any point in time.
@@ -46,6 +47,7 @@ type stateResponseImpl struct {
 func (s *stateResponseImpl) GetAuthEvents() EventJSONs {
 	return s.authEvents
 }
+
 func (s *stateResponseImpl) GetStateEvents() EventJSONs {
 	return s.stateEvents
 }
@@ -63,7 +65,7 @@ type FederatedStateProvider struct {
 	AuthEventMap        map[string]PDU
 }
 
-// StateIDsBeforeEvent implements StateProvider
+// StateIDsBeforeEvent implements StateProvider.
 func (p *FederatedStateProvider) StateIDsBeforeEvent(ctx context.Context, event PDU) ([]string, error) {
 	res, err := p.FedClient.LookupStateIDs(ctx, p.Origin, p.Server, event.RoomID().String(), event.EventID())
 	if err != nil {
@@ -75,7 +77,7 @@ func (p *FederatedStateProvider) StateIDsBeforeEvent(ctx context.Context, event 
 	return res.GetStateEventIDs(), nil
 }
 
-// StateBeforeEvent implements StateProvider
+// StateBeforeEvent implements StateProvider.
 func (p *FederatedStateProvider) StateBeforeEvent(ctx context.Context, roomVer RoomVersion, event PDU, eventIDs []string) (map[string]PDU, error) {
 	res, err := p.FedClient.LookupState(ctx, p.Origin, p.Server, event.RoomID().String(), event.EventID(), roomVer)
 	if err != nil {
@@ -141,7 +143,7 @@ func VerifyAuthRulesAtState(ctx context.Context, sp StateProvider, eventToVerify
 		}
 	}
 	if ctx.Err() != nil {
-		return fmt.Errorf("gomatrixserverlib.VerifyAuthRulesAtState: context cancelled: %w", ctx.Err())
+		return fmt.Errorf("gomatrixserverlib.VerifyAuthRulesAtState: context canceled: %w", ctx.Err())
 	}
 
 	// slow path: fetch the events at this state and check auth
@@ -150,7 +152,7 @@ func VerifyAuthRulesAtState(ctx context.Context, sp StateProvider, eventToVerify
 		return fmt.Errorf("gomatrixserverlib.VerifyAuthRulesAtState: cannot get state at event %s: %w", eventToVerify.EventID(), err)
 	}
 	if ctx.Err() != nil {
-		return fmt.Errorf("gomatrixserverlib.VerifyAuthRulesAtState: context cancelled: %w", ctx.Err())
+		return fmt.Errorf("gomatrixserverlib.VerifyAuthRulesAtState: context canceled: %w", ctx.Err())
 	}
 	if err := checkAllowedByAuthEvents(eventToVerify, roomState, nil, userIDForSender); err != nil {
 		return fmt.Errorf(
@@ -170,7 +172,8 @@ func checkAllowedByAuthEvents(
 	for _, ae := range event.AuthEventIDs() {
 	retryEvent:
 		authEvent, ok := eventsByID[ae]
-		if !ok {
+		switch {
+		case !ok:
 			// We don't have an entry in the eventsByID map - neither an event nor nil.
 			if missingAuth != nil {
 				// If we have a EventProvider then ask it for the missing event.
@@ -198,13 +201,13 @@ func checkAllowedByAuthEvents(
 				// Check() below will catch it.
 				continue
 			}
-		} else if authEvent != nil {
+		case authEvent != nil:
 			// We had an entry in the map and it contains an actual event, so add it to
 			// the auth events provider.
 			if err := authEvents.AddEvent(authEvent); err != nil {
 				return err
 			}
-		} else {
+		default:
 			// We had an entry in the map but it contains nil, which means that we tried
 			// to use the EventProvider to retrieve it and failed, so at this point
 			// we just have to ignore the event.

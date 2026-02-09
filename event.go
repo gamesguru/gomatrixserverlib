@@ -20,15 +20,15 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"github.com/matrix-org/gomatrixserverlib/spec"
+	"codefloe.com/pat-s/gomatrixserverlib/spec"
 )
 
-// Event validation errors
+// Event validation errors.
 const (
 	EventValidationTooLarge int = 1
 )
 
-// EventValidationError is returned if there is a problem validating an event
+// EventValidationError is returned if there is a problem validating an event.
 type EventValidationError struct {
 	Message     string
 	Code        int
@@ -49,7 +49,7 @@ type eventFields struct {
 	Depth          int64          `json:"depth"`
 	Unsigned       spec.RawJSON   `json:"unsigned,omitempty"`
 	OriginServerTS spec.Timestamp `json:"origin_server_ts"`
-	//Origin         spec.ServerName `json:"origin"`
+	// Origin         spec.ServerName `json:"origin"`
 }
 
 var emptyEventReferenceList = []eventReference{}
@@ -102,7 +102,7 @@ func SplitID(sigil byte, id string) (local string, domain spec.ServerName, err e
 		return "", "", fmt.Errorf("gomatrixserverlib: invalid ID %q doesn't start with %q", id, sigil)
 	}
 	parts := strings.SplitN(id, ":", 2)
-	if len(parts) != 2 {
+	if len(parts) != 2 { //nolint:mnd
 		// The ID must have a ":" character.
 		return "", "", fmt.Errorf("gomatrixserverlib: invalid ID %q missing ':'", id)
 	}

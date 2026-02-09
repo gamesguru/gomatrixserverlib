@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 
-	"github.com/matrix-org/gomatrixserverlib/spec"
+	"codefloe.com/pat-s/gomatrixserverlib/spec"
 )
 
 type FederatedJoinClient interface {
@@ -40,10 +40,10 @@ type ProtoEvent struct {
 	StateKey *string `json:"state_key,omitempty"`
 	// The events that immediately preceded this event in the room history. This can be
 	// either []eventReference for room v1/v2, and []string for room v3 onwards.
-	PrevEvents interface{} `json:"prev_events"`
+	PrevEvents any `json:"prev_events"`
 	// The events needed to authenticate this event. This can be
 	// either []eventReference for room v1/v2, and []string for room v3 onwards.
-	AuthEvents interface{} `json:"auth_events,omitempty"`
+	AuthEvents any `json:"auth_events,omitempty"`
 	// Previous state events, for MSC4242 state dag rooms. Pointer to allow [] to encode for the create event.
 	PrevStateEvents *[]string `json:"prev_state_events,omitempty"`
 	// The event ID of the event being redacted if this event is a "m.room.redaction".
@@ -61,13 +61,13 @@ type ProtoEvent struct {
 	Version IRoomVersion `json:"-"` // exclude this field
 }
 
-func (pe *ProtoEvent) SetContent(content interface{}) (err error) {
+func (pe *ProtoEvent) SetContent(content any) (err error) {
 	pe.Content, err = json.Marshal(content)
 	return
 }
 
 // SetUnsigned sets the JSON unsigned key of the event.
-func (pe *ProtoEvent) SetUnsigned(unsigned interface{}) (err error) {
+func (pe *ProtoEvent) SetUnsigned(unsigned any) (err error) {
 	pe.Unsigned, err = json.Marshal(unsigned)
 	return
 }

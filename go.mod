@@ -1,4 +1,4 @@
-module github.com/matrix-org/gomatrixserverlib
+module codefloe.com/pat-s/gomatrixserverlib
 
 require (
 	github.com/google/go-cmp v0.7.0

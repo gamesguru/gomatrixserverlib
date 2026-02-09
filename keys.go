@@ -20,7 +20,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/matrix-org/gomatrixserverlib/spec"
+	"codefloe.com/pat-s/gomatrixserverlib/spec"
 )
 
 // ServerKeys are the ed25519 signing keys published by a matrix server.
@@ -60,13 +60,13 @@ type ServerKeyFields struct {
 	OldVerifyKeys map[KeyID]OldVerifyKey `json:"old_verify_keys"`
 }
 
-// UnmarshalJSON implements json.Unmarshaler
+// UnmarshalJSON implements json.Unmarshaler.
 func (keys *ServerKeys) UnmarshalJSON(data []byte) error {
 	keys.Raw = data
 	return json.Unmarshal(data, &keys.ServerKeyFields)
 }
 
-// MarshalJSON implements json.Marshaler
+// MarshalJSON implements json.Marshaler.
 func (keys ServerKeys) MarshalJSON() ([]byte, error) {
 	if len(keys.Raw) == 0 {
 		js, err := json.Marshal(keys.ServerKeyFields)
@@ -75,7 +75,7 @@ func (keys ServerKeys) MarshalJSON() ([]byte, error) {
 		}
 		return js, nil
 	}
-	// We already have a copy of the serialised JSON for the keys so we can return that directly.
+	// We already have a copy of the serialized JSON for the keys so we can return that directly.
 	return keys.Raw, nil
 }
 
@@ -107,7 +107,7 @@ type KeyChecks struct {
 }
 
 // CheckKeys checks the keys returned from a server to make sure they are valid.
-// If the checks pass then also return a map of key_id to Ed25519 public key
+// If the checks pass then also return a map of key_id to Ed25519 public key.
 func CheckKeys(
 	serverName spec.ServerName,
 	now time.Time,
@@ -139,7 +139,7 @@ func checkVerifyKeys(keys ServerKeys, checks *KeyChecks) map[KeyID]spec.Base64By
 			checks.HasEd25519Key = true
 			checks.AllEd25519ChecksOK = &allEd25519ChecksOK
 			entry := Ed25519Checks{
-				ValidEd25519: len(publicKey) == 32,
+				ValidEd25519: len(publicKey) == 32, //nolint:mnd
 			}
 			if entry.ValidEd25519 {
 				err := VerifyJSON(string(keys.ServerName), keyID, []byte(publicKey), keys.Raw)

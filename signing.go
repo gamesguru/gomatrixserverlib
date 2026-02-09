@@ -19,9 +19,10 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/matrix-org/gomatrixserverlib/spec"
 	"github.com/tidwall/sjson"
 	"golang.org/x/crypto/ed25519"
+
+	"codefloe.com/pat-s/gomatrixserverlib/spec"
 )
 
 // A KeyID is the ID of a ed25519 key used to sign JSON.
@@ -106,17 +107,17 @@ func VerifyJSON(signingName string, keyID KeyID, publicKey ed25519.PublicKey, me
 
 	// Check that there is a signature from the entity that we are expecting a signature from.
 	if object["signatures"] == nil {
-		return fmt.Errorf("No signatures")
+		return fmt.Errorf("no signatures")
 	}
 	if err := json.Unmarshal(*object["signatures"], &signatures); err != nil {
 		return err
 	}
 	signature, ok := signatures[signingName][keyID]
 	if !ok {
-		return fmt.Errorf("No signature from %q with ID %q", signingName, keyID)
+		return fmt.Errorf("no signature from %q with ID %q", signingName, keyID)
 	}
 	if len(signature) != ed25519.SignatureSize {
-		return fmt.Errorf("Bad signature length from %q with ID %q", signingName, keyID)
+		return fmt.Errorf("bad signature length from %q with ID %q", signingName, keyID)
 	}
 
 	// The "unsigned" key and "signatures" keys aren't covered by the signature so remove them.
@@ -135,7 +136,7 @@ func VerifyJSON(signingName string, keyID KeyID, publicKey ed25519.PublicKey, me
 
 	// Verify the ed25519 signature.
 	if !ed25519.Verify(publicKey, canonical, signature) {
-		return fmt.Errorf("Bad signature from %q with ID %q", signingName, keyID)
+		return fmt.Errorf("bad signature from %q with ID %q", signingName, keyID)
 	}
 
 	return nil

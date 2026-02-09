@@ -28,7 +28,7 @@ func GetUserFromToken(token string) (user string, err error) {
 		return
 	}
 
-	user = string(mac.Id()[:])
+	user = string(mac.Id())
 	return
 }
 
@@ -37,23 +37,23 @@ func GetUserFromToken(token string) (user string, err error) {
 func ValidateToken(op TokenOptions, token string) error {
 	mac, err := deSerializeMacaroon(token)
 	if err != nil {
-		return errors.New("Token does not represent a valid macaroon")
+		return errors.New("token does not represent a valid macaroon")
 	}
 
 	caveats, err := mac.VerifySignature(op.ServerPrivateKey, nil)
 	if err != nil {
-		return errors.New("Provided token was not issued by this server")
+		return errors.New("provided token was not issued by this server")
 	}
 
 	err = verifyCaveats(caveats, op.UserID)
 	if err != nil {
-		return errors.New("Provided token not authorized")
+		return errors.New("provided token not authorized")
 	}
 	return nil
 }
 
 // verifyCaveats verifies caveats associated with a login token macaroon.
-// which are "gen = 1", "user_id = ...", "time < ..."
+// Which are "gen = 1", "user_id = ...", "time < ..."
 // Returns nil on successful verification, else returns an error.
 func verifyCaveats(caveats []string, userID string) error {
 	// variable verified represents a bitmap
@@ -83,18 +83,17 @@ LoopCaveat:
 	}
 	// Check that all three caveats are verified and no extra caveats
 	// i.e. Uvvv == 0111
-	if verified == 7 {
+	if verified == 7 { //nolint:mnd
 		return nil
-	} else if verified >= 8 {
-		return errors.New("Unknown caveat present")
+	} else if verified >= 8 { //nolint:mnd
+		return errors.New("unknown caveat present")
 	}
 
-	return errors.New("Required caveats not present")
+	return errors.New("required caveats not present")
 }
 
 func verifyExpiry(t string, now int) bool {
 	expiry, err := strconv.Atoi(t)
-
 	if err != nil {
 		return false
 	}

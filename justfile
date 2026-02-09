@@ -21,7 +21,7 @@ fmt:
     prettier -w .
     gofumpt -w .
     golangci-lint run --fix
-    gci write --skip-vendor --skip-generated -s standard -s default -s "prefix(github.com/matrix-org/gomatrixserverlib)" --custom-order .
+    gci write --skip-vendor --skip-generated -s standard -s default -s "prefix(codefloe.com/pat-s/gomatrixserverlib)" --custom-order .
 
 # Run both lint and tests
 check: lint test

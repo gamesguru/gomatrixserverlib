@@ -23,8 +23,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/matrix-org/gomatrixserverlib/spec"
 	"golang.org/x/crypto/ed25519"
+
+	"codefloe.com/pat-s/gomatrixserverlib/spec"
 )
 
 var privateKey1 = mustLoadPrivateKey(privateKeySeed1)
@@ -57,7 +58,7 @@ func BenchmarkParseLargerEvent(b *testing.B) {
 	benchmarkParse(b, `{"auth_events":[["$Stdin0028C5qBjz5:localhost",{"sha256":"PvTyW+Mfb0aCajkIlBk1XlQE+1uVco3to8C2+/1J7iQ"}],["$klXtjBwwDQIGglax:localhost",{"sha256":"hLoiSkcGLZJr5wkIDA8+bujNJPsYX1SOCCXIErHEcgM"}]],"content":{"ban":50,"events":{"m.room.avatar":50,"m.room.canonical_alias":50,"m.room.history_visibility":100,"m.room.name":50,"m.room.power_levels":100},"events_default":0,"invite":0,"kick":50,"redact":50,"state_default":50,"users":{"@test:localhost":100},"users_default":0},"depth":3,"event_id":"$7gPR7SLdkfDsMvJL:localhost","hashes":{"sha256":"/kQnrzO5vhbnwyGvKso4CVMRyyryiyanq6t27mt5kSw"},"origin":"localhost","origin_server_ts":1510854446548,"prev_events":[["$klXtjBwwDQIGglax:localhost",{"sha256":"hLoiSkcGLZJr5wkIDA8+bujNJPsYX1SOCCXIErHEcgM"}]],"prev_state":[],"room_id":"!pUjJbIC8V32G0FLt:localhost","sender":"@test:localhost","signatures":{"localhost":{"ed25519:u9kP":"NOxjrcci7AIRhcTVmJ6nrsslLsaOJzB0iusDZ6cOFrv2OXkDY7mrBM3cQQS3DhGWltEtu3OC0nsvkfeYtwr9DQ"}},"state_key":"","type":"m.room.power_levels"}`)
 }
 
-// Lets now test parsing a smaller name event, first one that is valid, then wrong hash, and then the redacted one
+// Lets now test parsing a smaller name event, first one that is valid, then wrong hash, and then the redacted one.
 
 func BenchmarkParseSmallerEvent(b *testing.B) {
 	benchmarkParse(b, `{"auth_events":[["$oXL79cT7fFxR7dPH:localhost",{"sha256":"abjkiDSg1RkuZrbj2jZoGMlQaaj1Ue3Jhi7I7NlKfXY"}],["$IVUsaSkm1LBAZYYh:localhost",{"sha256":"X7RUj46hM/8sUHNBIFkStbOauPvbDzjSdH4NibYWnko"}],["$VS2QT0EeArZYi8wf:localhost",{"sha256":"k9eM6utkCH8vhLW9/oRsH74jOBS/6RVK42iGDFbylno"}]],"content":{"name":"test3"},"depth":7,"event_id":"$yvN1b43rlmcOs5fY:localhost","hashes":{"sha256":"Oh1mwI1jEqZ3tgJ+V1Dmu5nOEGpCE4RFUqyJv2gQXKs"},"origin":"localhost","origin_server_ts":1510854416361,"prev_events":[["$FqI6TVvWpcbcnJ97:localhost",{"sha256":"upCsBqUhNUgT2/+zkzg8TbqdQpWWKQnZpGJc6KcbUC4"}]],"prev_state":[],"room_id":"!19Mp0U9hjajeIiw1:localhost","sender":"@test:localhost","signatures":{"localhost":{"ed25519:u9kP":"5IzSuRXkxvbTp0vZhhXYZeOe+619iG3AybJXr7zfNn/4vHz4TH7qSJVQXSaHHvcTcDodAKHnTG1WDulgO5okAQ"}},"state_key":"","type":"m.room.name"}`)
@@ -302,7 +303,7 @@ func TestEventBuilderBuildsEventWithAuthError(t *testing.T) {
 	if err = builder.AddAuthEvents(provider); err == nil {
 		t.Fatal("Building didn't fail")
 	}
-	println(err.Error())
+	t.Log(err.Error())
 }
 
 type authProvider struct {

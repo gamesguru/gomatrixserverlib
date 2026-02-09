@@ -32,17 +32,18 @@ import (
 	"time"
 
 	"github.com/matrix-org/gomatrix"
-	"github.com/matrix-org/gomatrixserverlib"
-	"github.com/matrix-org/gomatrixserverlib/spec"
 	"github.com/matrix-org/util"
 	"github.com/sirupsen/logrus"
+
+	"codefloe.com/pat-s/gomatrixserverlib"
+	"codefloe.com/pat-s/gomatrixserverlib/spec"
 )
 
-// Default HTTPS request timeout
+// Default HTTPS request timeout.
 const requestTimeout time.Duration = time.Duration(30) * time.Second
 
 // A Client makes HTTP requests to remote servers. It is used to
-// centralise a number of configurable options, such as DNS caching,
+// centralize a number of configurable options, such as DNS caching,
 // timeouts etc.
 type Client struct {
 	client    http.Client
@@ -166,10 +167,12 @@ func WithAllowDenyNetworks(allowCIDRs []string, denyCIDRs []string) ClientOption
 	}
 }
 
-const destinationTripperLifetime = time.Minute * 5 // how long to keep an entry
-const destinationTripperReapInterval = time.Minute // how often to check for dead entries
+const (
+	destinationTripperLifetime     = time.Minute * 5 // how long to keep an entry
+	destinationTripperReapInterval = time.Minute     // how often to check for dead entries
+)
 
-// nolint:maligned
+//nolint:maligned
 type destinationTripper struct {
 	// transports maps an TLS server name with an HTTP transport.
 	transports      map[string]*destinationTripperTransport
@@ -202,7 +205,10 @@ func (f *destinationTripper) reaper() {
 	defer f.transportsMutex.Unlock()
 
 	for serverName, transport := range f.transports {
-		since := transport.lastUsed.Load().(time.Time)
+		since, ok := transport.lastUsed.Load().(time.Time)
+		if !ok {
+			continue
+		}
 		if time.Since(since) > destinationTripperLifetime {
 			delete(f.transports, serverName)
 		}
@@ -218,17 +224,17 @@ func (f *destinationTripper) reaper() {
 func newDestinationTripperDialer(allowNetworks []string, denyNetworks []string) *net.Dialer {
 	if len(allowNetworks) == 0 && len(denyNetworks) == 0 {
 		return &net.Dialer{
-			Timeout: time.Second * 5,
+			Timeout: time.Second * 5, //nolint:mnd
 		}
 	}
 
 	return &net.Dialer{
-		Timeout:        time.Second * 5,
+		Timeout:        time.Second * 5, //nolint:mnd
 		ControlContext: allowDenyNetworksControl(allowNetworks, denyNetworks),
 	}
 }
 
-// allowDenyNetworksControl is used to allow/deny access to certain networks
+// allowDenyNetworksControl is used to allow/deny access to certain networks.
 func allowDenyNetworksControl(allowNetworks, denyNetworks []string) func(_ context.Context, network string, address string, conn syscall.RawConn) error {
 	return func(_ context.Context, network string, address string, conn syscall.RawConn) error {
 		if network != "tcp4" && network != "tcp6" {
@@ -237,7 +243,7 @@ func allowDenyNetworksControl(allowNetworks, denyNetworks []string) func(_ conte
 
 		host, _, err := net.SplitHostPort(address)
 		if err != nil {
-			return fmt.Errorf("%s is not a valid host/port pair: %s", address, err)
+			return fmt.Errorf("%s is not a valid host/port pair: %w", address, err)
 		}
 
 		ipaddress := net.ParseIP(host)
@@ -263,9 +269,9 @@ func isAllowed(ip net.IP, allowCIDRs []string, denyCIDRs []string) bool {
 	return false // "should never happen"
 }
 
-func inRange(ip net.IP, CIDRs []string) bool {
-	for i := 0; i < len(CIDRs); i++ {
-		cidr := CIDRs[i]
+func inRange(ip net.IP, cidrs []string) bool {
+	for i := 0; i < len(cidrs); i++ {
+		cidr := cidrs[i]
 		_, network, err := net.ParseCIDR(cidr)
 		if err != nil {
 			return false
@@ -306,7 +312,7 @@ func (f *destinationTripper) getTransport(tlsServerName string, dialer *net.Dial
 					InsecureSkipVerify: f.skipVerify,
 					ClientSessionCache: tls.NewLRUClientSessionCache(0), // 0 = use default
 				},
-				Dial:              dialer.Dial, // nolint: staticcheck
+				Dial:              dialer.Dial,
 				DialContext:       dialer.DialContext,
 				Proxy:             http.ProxyFromEnvironment,
 				ForceAttemptHTTP2: true, // if we can multiplex requests over HTTP/2, we should
@@ -419,7 +425,7 @@ func (fc *Client) LookupUserInfo(
 	var response *http.Response
 	response, err = fc.DoHTTPRequest(ctx, req)
 	if response != nil {
-		defer response.Body.Close() // nolint: errcheck
+		defer response.Body.Close()
 	}
 	if err != nil {
 		return
@@ -448,7 +454,7 @@ func (fc *Client) LookupUserInfo(
 	return
 }
 
-// GetServerKeys asks a matrix server for its signing keys and TLS cert
+// GetServerKeys asks a matrix server for its signing keys and TLS cert.
 func (fc *Client) GetServerKeys(
 	ctx context.Context, matrixServer spec.ServerName,
 ) (gomatrixserverlib.ServerKeys, error) {
@@ -565,7 +571,7 @@ func (fc *Client) LookupServerKeys(
 	return res.ServerKeyList, nil
 }
 
-// CreateMediaDownloadRequest creates a request for media on a homeserver and returns the http.Response or an error
+// CreateMediaDownloadRequest creates a request for media on a homeserver and returns the http.Response or an error.
 func (fc *Client) CreateMediaDownloadRequest(
 	ctx context.Context, matrixServer spec.ServerName, mediaID string,
 ) (*http.Response, error) {
@@ -588,17 +594,17 @@ func (fc *Client) CreateMediaDownloadRequest(
 func (fc *Client) DoRequestAndParseResponse(
 	ctx context.Context,
 	req *http.Request,
-	result interface{},
+	result any,
 ) error {
 	response, err := fc.DoHTTPRequest(ctx, req)
 	if response != nil {
-		defer response.Body.Close() // nolint: errcheck
+		defer response.Body.Close()
 	}
 	if err != nil {
 		return err
 	}
 
-	if response.StatusCode/100 != 2 { // not 2xx
+	if response.StatusCode/100 != 2 { //nolint:mnd // not 2xx
 		// Adapted from https://github.com/matrix-org/gomatrix/blob/master/client.go
 		var contents []byte
 		contents, err = io.ReadAll(response.Body)
@@ -640,7 +646,7 @@ func (fc *Client) DoRequestAndParseResponse(
 // If the returned error is nil, the Response will contain a non-nil
 // Body which the caller is expected to close.
 func (fc *Client) DoHTTPRequest(ctx context.Context, req *http.Request) (*http.Response, error) {
-	reqID := util.RandomString(12)
+	reqID := util.RandomString(12) //nolint:mnd
 	logger := util.GetLogger(ctx).WithFields(logrus.Fields{
 		"out.req.ID":     reqID,
 		"out.req.method": req.Method,

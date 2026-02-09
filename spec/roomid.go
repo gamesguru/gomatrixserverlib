@@ -23,17 +23,17 @@ func NewRoomID(id string) (*RoomID, error) {
 	return parseAndValidateRoomID(id)
 }
 
-// Returns the full roomID string including leading sigil
+// Returns the full roomID string including leading sigil.
 func (room RoomID) String() string {
 	return room.raw
 }
 
-// Returns just the localpart of the roomID
+// Returns just the localpart of the roomID.
 func (room RoomID) OpaqueID() string {
 	return room.opaqueID
 }
 
-// Returns just the domain of the roomID
+// Returns just the domain of the roomID.
 func (room RoomID) Domain() ServerName {
 	if room.isDomainless {
 		panic("Called RoomID.Domain() on domain-less room ID " + room.String())
@@ -43,7 +43,7 @@ func (room RoomID) Domain() ServerName {
 
 func parseAndValidateRoomID(id string) (*RoomID, error) {
 	idLength := len(id)
-	if idLength < 4 { // 4 since minimum roomID includes an !, :, non-empty opaque ID, non-empty domain
+	if idLength < 4 { //nolint:mnd // 4 since minimum roomID includes an !, :, non-empty opaque ID, non-empty domain
 		return nil, fmt.Errorf("length %d is too short to be valid", idLength)
 	}
 	if id[0] != roomSigil {

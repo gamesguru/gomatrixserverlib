@@ -50,8 +50,11 @@ func TestPseudoIDSenderIDs(t *testing.T) {
 
 	t.Run("test pseudo ID", func(t *testing.T) {
 		senderID := SenderIDFromPseudoIDKey(testKey)
-		testPubkey := testKey.Public()
-		expectedSenderIDString := Base64Bytes(testPubkey.(ed25519.PublicKey)).Encode()
+		testPubkey, ok := testKey.Public().(ed25519.PublicKey)
+		if !ok {
+			t.Fatal("expected ed25519.PublicKey from testKey.Public()")
+		}
+		expectedSenderIDString := Base64Bytes(testPubkey).Encode()
 
 		if string(senderID) != expectedSenderIDString {
 			t.Fatalf("Created sender ID did not match provided key: created sender ID %s, expected: %s", string(senderID), expectedSenderIDString)

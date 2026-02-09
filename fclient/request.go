@@ -11,15 +11,16 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"github.com/matrix-org/gomatrixserverlib"
-	"github.com/matrix-org/gomatrixserverlib/spec"
 	"github.com/matrix-org/util"
 	"golang.org/x/crypto/ed25519"
+
+	"codefloe.com/pat-s/gomatrixserverlib"
+	"codefloe.com/pat-s/gomatrixserverlib/spec"
 )
 
 // A FederationRequest is a request to send to a remote server or a request
 // received from a remote server.
-// Federation requests are signed by building a JSON object and signing it
+// Federation requests are signed by building a JSON object and signing it.
 type FederationRequest struct {
 	// fields implement the JSON format needed for signing
 	// specified in https://matrix.org/docs/spec/server_server/unstable.html#request-authentication
@@ -37,7 +38,7 @@ type FederationRequest struct {
 // destination homeserver and a request path which can have a query string.
 // The destination is the name of a matrix homeserver.
 // The request path must begin with a slash.
-// Eg. NewFederationRequest("GET", "matrix.org", "/_matrix/federation/v1/send/123")
+// Eg. NewFederationRequest("GET", "matrix.org", "/_matrix/federation/v1/send/123").
 func NewFederationRequest(method string, origin, destination spec.ServerName, requestURI string) FederationRequest {
 	var r FederationRequest
 	r.fields.Origin = origin
@@ -49,7 +50,7 @@ func NewFederationRequest(method string, origin, destination spec.ServerName, re
 
 // SetContent sets the JSON content for the request.
 // Returns an error if there already is JSON content present on the request.
-func (r *FederationRequest) SetContent(content interface{}) error {
+func (r *FederationRequest) SetContent(content any) error {
 	if r.fields.Content != nil {
 		return fmt.Errorf("gomatrixserverlib: content already set on the request")
 	}
@@ -99,7 +100,7 @@ func (r *FederationRequest) Sign(serverName spec.ServerName, keyID gomatrixserve
 	}
 	r.fields.Origin = serverName
 	// The request fields are already in the form required by the specification
-	// So we can just serialise the request fields using the default marshaller
+	// So we can just serialize the request fields using the default marshaller
 	data, err := json.Marshal(r.fields)
 	if err != nil {
 		return err
@@ -168,7 +169,7 @@ func (r *FederationRequest) HTTPRequest() (*http.Request, error) {
 // charcters are:
 //
 //	qdtext         = HTAB / SP / %x21 / %x23-5B / %x5D-7E / %x80-FF
-func isSafeInHTTPQuotedString(text string) bool { // nolint: gocyclo
+func isSafeInHTTPQuotedString(text string) bool { //nolint: gocyclo
 	for i := 0; i < len(text); i++ {
 		c := text[i]
 		switch {
@@ -176,13 +177,13 @@ func isSafeInHTTPQuotedString(text string) bool { // nolint: gocyclo
 			continue
 		case c == ' ':
 			continue
-		case c == 0x21:
+		case c == 0x21: //nolint:mnd
 			continue
 		case 0x23 <= c && c <= 0x5B:
 			continue
 		case 0x5D <= c && c <= 0x7E:
 			continue
-		case 0x80 <= c:
+		case 0x80 <= c: //nolint:mnd
 			continue
 		default:
 			return false
@@ -211,39 +212,39 @@ func VerifyHTTPRequest(
 	request, err := readHTTPRequest(req)
 	if err != nil {
 		util.GetLogger(req.Context()).WithError(err).Print("Error parsing HTTP headers")
-		return nil, util.MessageResponse(400, "Bad Request")
+		return nil, util.MessageResponse(http.StatusBadRequest, "Bad Request")
 	}
 	if request.fields.Destination != "" {
 		switch {
 		case isLocalServerName != nil && !isLocalServerName(request.fields.Destination):
 			fallthrough
 		case isLocalServerName == nil && destination != request.fields.Destination:
-			message := fmt.Sprintf("Unrecognised server name %q for Destination", request.fields.Destination)
+			message := fmt.Sprintf("Unrecognized server name %q for Destination", request.fields.Destination)
 			util.GetLogger(req.Context()).Warn(message)
-			return nil, util.MessageResponse(400, message)
+			return nil, util.MessageResponse(http.StatusBadRequest, message)
 		}
 	} else if request.fields.Destination == "" {
 		request.fields.Destination = destination
 	}
 
 	// The request fields are already in the form required by the specification
-	// So we can just serialise the request fields using the default marshaller
+	// So we can just serialize the request fields using the default marshaller
 	toVerify, err := json.Marshal(request.fields)
 	if err != nil {
 		util.GetLogger(req.Context()).WithError(err).Print("Error parsing JSON")
-		return nil, util.MessageResponse(400, "Invalid JSON")
+		return nil, util.MessageResponse(http.StatusBadRequest, "Invalid JSON")
 	}
 
 	if request.Origin() == "" {
 		message := "Missing \"Authorization: X-Matrix ...\" HTTP header"
 		util.GetLogger(req.Context()).WithError(err).Print(message)
-		return nil, util.MessageResponse(401, message)
+		return nil, util.MessageResponse(http.StatusUnauthorized, message)
 	}
 	_, _, valid := spec.ParseAndValidateServerName(request.Origin())
 	if !valid {
 		message := "Invalid server name for Origin"
 		util.GetLogger(req.Context()).WithError(err).Print(message)
-		return nil, util.MessageResponse(400, message)
+		return nil, util.MessageResponse(http.StatusBadRequest, message)
 	}
 
 	results, err := keys.VerifyJSONs(req.Context(), []gomatrixserverlib.VerifyJSONRequest{{
@@ -255,19 +256,19 @@ func VerifyHTTPRequest(
 	if err != nil {
 		message := "Error authenticating request"
 		util.GetLogger(req.Context()).WithError(err).Print(message)
-		return nil, util.MessageResponse(500, message)
+		return nil, util.MessageResponse(http.StatusInternalServerError, message)
 	}
 	if results[0].Error != nil {
 		message := "Invalid request signature"
 		util.GetLogger(req.Context()).WithError(results[0].Error).Print(message)
-		return nil, util.MessageResponse(401, message)
+		return nil, util.MessageResponse(http.StatusUnauthorized, message)
 	}
 
-	return request, util.JSONResponse{Code: 200, JSON: struct{}{}}
+	return request, util.JSONResponse{Code: http.StatusOK, JSON: struct{}{}}
 }
 
-// Returns an error if there was a problem reading the content of the request
-func readHTTPRequest(req *http.Request) (*FederationRequest, error) { // nolint: gocyclo
+// Returns an error if there was a problem reading the content of the request.
+func readHTTPRequest(req *http.Request) (*FederationRequest, error) { //nolint: gocyclo
 	var result FederationRequest
 
 	result.fields.Method = req.Method
@@ -323,12 +324,12 @@ func ParseAuthorization(header string) (scheme string, origin, destination spec.
 	if scheme != "X-Matrix" {
 		return
 	}
-	if len(parts) != 2 {
+	if len(parts) != 2 { //nolint:mnd
 		return
 	}
 	for _, data := range strings.Split(parts[1], ",") {
 		pair := strings.SplitN(data, "=", 2)
-		if len(pair) != 2 {
+		if len(pair) != 2 { //nolint:mnd
 			continue
 		}
 		name := strings.TrimSpace(pair[0])

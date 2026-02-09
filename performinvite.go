@@ -20,8 +20,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/matrix-org/gomatrixserverlib/spec"
 	"github.com/sirupsen/logrus"
+
+	"codefloe.com/pat-s/gomatrixserverlib/spec"
 )
 
 type GetLatestEvents func(ctx context.Context, roomID spec.RoomID, eventsNeeded []StateKeyTuple) (LatestEvents, error)
@@ -51,7 +52,8 @@ type PerformInviteInput struct {
 // to happen.
 // On success will return either nothing (in the case of inviting a local user) or
 // a fully formed & signed Invite Event (in the case of inviting a remote user)
-// nolint:gocyclo
+//
+//nolint:gocyclo
 func PerformInvite(ctx context.Context, input PerformInviteInput, fedClient FederatedInviteClient) (PDU, error) {
 	if input.MembershipQuerier == nil || input.StateQuerier == nil || input.UserIDQuerier == nil ||
 		input.SenderIDQuerier == nil || input.SenderIDCreator == nil || input.EventQuerier == nil {
@@ -285,10 +287,10 @@ func truncateAuthAndPrevEvents(auth, prev []string) (
 	truncAuth, truncPrev []string,
 ) {
 	truncAuth, truncPrev = auth, prev
-	if len(truncAuth) > 10 {
+	if len(truncAuth) > 10 { //nolint:mnd
 		truncAuth = truncAuth[:10]
 	}
-	if len(truncPrev) > 20 {
+	if len(truncPrev) > 20 { //nolint:mnd
 		truncPrev = truncPrev[:20]
 	}
 	return

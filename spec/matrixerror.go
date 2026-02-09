@@ -41,7 +41,7 @@ const (
 	ErrorInvalidSignature            MatrixErrorCode = "M_INVALID_SIGNATURE"
 	ErrorInvalidParam                MatrixErrorCode = "M_INVALID_PARAM"
 	ErrorMissingParam                MatrixErrorCode = "M_MISSING_PARAM"
-	ErrorUnableToAuthoriseJoin       MatrixErrorCode = "M_UNABLE_TO_AUTHORISE_JOIN"
+	ErrorUnableToAuthoriseJoin       MatrixErrorCode = "M_UNABLE_TO_AUTHORIZE_JOIN"
 	ErrorCannotLeaveServerNoticeRoom MatrixErrorCode = "M_CANNOT_LEAVE_SERVER_NOTICE_ROOM"
 	ErrorWrongRoomKeysVersion        MatrixErrorCode = "M_WRONG_ROOM_KEYS_VERSION"
 	ErrorIncompatibleRoomVersion     MatrixErrorCode = "M_INCOMPATIBLE_ROOM_VERSION"
@@ -68,7 +68,7 @@ func (e MatrixError) Unwrap() error {
 	return errors.New(e.Err)
 }
 
-// InternalServerError
+// InternalServerError is returned for unexpected server-side errors.
 type InternalServerError struct {
 	Err string
 }
@@ -77,7 +77,7 @@ func (e InternalServerError) Error() string {
 	return fmt.Sprintf("Internal server error: %s", e.Err)
 }
 
-// Unknown is an unexpected error
+// Unknown is an unexpected error.
 func Unknown(msg string) MatrixError {
 	return MatrixError{ErrorUnknown, msg}
 }
@@ -122,7 +122,7 @@ func MissingToken(msg string) MatrixError {
 }
 
 // UnknownToken is an error when the client tries to access a resource which
-// requires authentication and supplies an unrecognised token
+// requires authentication and supplies an unrecognized token.
 func UnknownToken(msg string) MatrixError {
 	return MatrixError{ErrorUnknownToken, msg}
 }
@@ -134,19 +134,19 @@ func WeakPassword(msg string) MatrixError {
 }
 
 // InvalidUsername is an error returned when the client tries to register an
-// invalid username
+// invalid username.
 func InvalidUsername(msg string) MatrixError {
 	return MatrixError{ErrorInvalidUsername, msg}
 }
 
 // UserInUse is an error returned when the client tries to register an
-// username that already exists
+// username that already exists.
 func UserInUse(msg string) MatrixError {
 	return MatrixError{ErrorUserInUse, msg}
 }
 
 // RoomInUse is an error returned when the client tries to make a room
-// that already exists
+// that already exists.
 func RoomInUse(msg string) MatrixError {
 	return MatrixError{ErrorRoomInUse, msg}
 }
@@ -198,7 +198,7 @@ func LeaveServerNoticeError() MatrixError {
 	}
 }
 
-// ErrRoomKeysVersion is an error returned by `PUT /room_keys/keys`
+// ErrRoomKeysVersion is an error returned by `PUT /room_keys/keys`.
 type ErrRoomKeysVersion struct {
 	MatrixError
 	CurrentVersion string `json:"current_version"`
@@ -212,7 +212,7 @@ func (e ErrRoomKeysVersion) Unwrap() error {
 	return e.MatrixError
 }
 
-// WrongBackupVersionError is an error returned by `PUT /room_keys/keys`
+// WrongBackupVersionError is an error returned by `PUT /room_keys/keys`.
 func WrongBackupVersionError(currentVersion string) ErrRoomKeysVersion {
 	return ErrRoomKeysVersion{
 		MatrixError: MatrixError{
@@ -277,7 +277,7 @@ func LimitExceeded(msg string, retryAfterMS int64) LimitExceededError {
 }
 
 // NotTrusted is an error which is returned when the client asks the server to
-// proxy a request (e.g. 3PID association) to a server that isn't trusted
+// proxy a request (e.g. 3PID association) to a server that isn't trusted.
 func NotTrusted(serverName string) MatrixError {
 	return MatrixError{
 		ErrCode: ErrorServerNotTrusted,

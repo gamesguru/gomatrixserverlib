@@ -20,14 +20,15 @@ import (
 	"slices"
 
 	sets "github.com/hashicorp/go-set/v3"
-	"github.com/matrix-org/gomatrixserverlib/spec"
 	"github.com/oleiade/lane/v2"
+
+	"codefloe.com/pat-s/gomatrixserverlib/spec"
 )
 
-// TopologicalOrder represents how to sort a list of events, used primarily in ReverseTopologicalOrdering
+// TopologicalOrder represents how to sort a list of events, used primarily in ReverseTopologicalOrdering.
 type TopologicalOrder int
 
-// Sort events by prev_events or auth_events
+// Sort events by prev_events or auth_events.
 const (
 	TopologicalOrderByPrevEvents TopologicalOrder = iota + 1
 	TopologicalOrderByAuthEvents
@@ -58,7 +59,7 @@ type IsRejected func(eventID string) bool
 // keys and works out which event should be used for each state event. This
 // function returns the resolved state, including unconflicted state events.
 //
-// DEPRECATED: This function does not accurately determine which events are conflicted.
+// Deprecated: This function does not accurately determine which events are conflicted.
 // Use ResolveStateConflictsV2New instead.
 func ResolveStateConflictsV2(
 	conflicted, unconflicted,
@@ -127,7 +128,10 @@ func ResolveStateConflictsV2(
 
 	// Get the full conflicted set, that is the conflicted events and the
 	// auth difference (events that don't appear in all auth chains).
-	fullConflictedSet := append(conflicted, r.calculateAuthDifference()...)
+	authDifference := r.calculateAuthDifference()
+	allConflicted := make([]PDU, 0, len(conflicted)+len(authDifference))
+	allConflicted = append(allConflicted, conflicted...)
+	allConflicted = append(allConflicted, authDifference...)
 
 	// The full power set function returns the event and all of its auth
 	// events that also happen to appear in the conflicted set. This will
@@ -153,7 +157,7 @@ func ResolveStateConflictsV2(
 	// events which are unconflicted (from the auth difference, for example),
 	// pull in the control events and any events directly related to them.
 	conflictedPulledIn := make(map[string]struct{}, len(conflicted)+len(authEvents))
-	for _, p := range fullConflictedSet {
+	for _, p := range allConflicted {
 		if _, unconflicted := isUnconflicted[p.EventID()]; unconflicted {
 			continue
 		}
@@ -169,7 +173,7 @@ func ResolveStateConflictsV2(
 	// Then work through the set again, this time looking for any events
 	// that were left over from the last loop — that is, events that are
 	// either not control events or weren't pulled in to the control set.
-	for _, p := range fullConflictedSet {
+	for _, p := range allConflicted {
 		eventID := p.EventID()
 		if _, unconflicted := isUnconflicted[eventID]; unconflicted || isControlEvent(p) {
 			continue
@@ -241,7 +245,7 @@ func ResolveStateConflictsV2New(
 	userIDForSender spec.UserIDForSender,
 	isRejectedFn IsRejected,
 ) []PDU {
-	if len(stateSets) < 2 {
+	if len(stateSets) < 2 { //nolint:mnd
 		panic("must provide at least 2 stateSets to resolve conflicts")
 	}
 	conflicted, unconflicted := splitConflictedUnconflicted(stateResAlgo, stateSets)
@@ -287,7 +291,10 @@ func ResolveStateConflictsV2New(
 
 	// Get the full conflicted set, that is the conflicted events and the
 	// auth difference (events that don't appear in all auth chains).
-	fullConflictedSet := append(conflicted, r.calculateAuthDifferenceNew(stateResAlgo, newPDUSet(conflicted), stateSets)...)
+	authDifferenceNew := r.calculateAuthDifferenceNew(stateResAlgo, newPDUSet(conflicted), stateSets)
+	allConflictedNew := make([]PDU, 0, len(conflicted)+len(authDifferenceNew))
+	allConflictedNew = append(allConflictedNew, conflicted...)
+	allConflictedNew = append(allConflictedNew, authDifferenceNew...)
 
 	// The full power set function returns the event and all of its auth
 	// events that also happen to appear in the conflicted set. This will
@@ -313,7 +320,7 @@ func ResolveStateConflictsV2New(
 	// events which are unconflicted (from the auth difference, for example),
 	// pull in the control events and any events directly related to them.
 	conflictedPulledIn := make(map[string]struct{}, len(conflicted)+len(authEvents))
-	for _, p := range fullConflictedSet {
+	for _, p := range allConflictedNew {
 		if unconflictedSet.Contains(p) {
 			continue
 		}
@@ -329,7 +336,7 @@ func ResolveStateConflictsV2New(
 	// Then work through the set again, this time looking for any events
 	// that were left over from the last loop — that is, events that are
 	// either not control events or weren't pulled in to the control set.
-	for _, p := range fullConflictedSet {
+	for _, p := range allConflictedNew {
 		if unconflictedSet.Contains(p) || isControlEvent(p) {
 			continue
 		}
@@ -628,7 +635,7 @@ func (r *stateResolverV2) calculateFullAuthChainAndConflictedSubgraph(
 			authEvent, ok := r.authEventMap[authEventID]
 			if !ok {
 				// FIXME: we should return an error but prior code silently continued,
-				// so match the existing behaviour.
+				// so match the existing behavior.
 				continue
 			}
 			// don't walk paths we've already walked
@@ -1187,7 +1194,7 @@ func kahnsAlgorithmUsingPrevEvents(events []*stateResV2ConflictedOther) []*state
 	return graph
 }
 
-// Convert a list of PDUs into a set, keyed off the event ID of the PDU
+// Convert a list of PDUs into a set, keyed off the event ID of the PDU.
 func newPDUSet(pdus []PDU) *sets.HashSet[PDU, string] {
 	s := sets.NewHashSetFunc[PDU, string](len(pdus), func(p PDU) string {
 		return p.EventID()

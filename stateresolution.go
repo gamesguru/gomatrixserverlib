@@ -21,7 +21,7 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/matrix-org/gomatrixserverlib/spec"
+	"codefloe.com/pat-s/gomatrixserverlib/spec"
 )
 
 // ResolveStateConflicts takes a list of state events with conflicting state keys
@@ -106,7 +106,7 @@ func (r *stateResolver) Member(key spec.SenderID) (PDU, error) {
 	return r.resolvedMembers[key], nil
 }
 
-func (r *stateResolver) addConflicted(events []PDU) { // nolint: gocyclo
+func (r *stateResolver) addConflicted(events []PDU) { //nolint: gocyclo
 	type conflictKey struct {
 		eventType string
 		stateKey  string
@@ -296,7 +296,7 @@ func sortConflictedEventsByDepthAndSHA1(events []PDU) []conflictedEvent {
 }
 
 // A conflictedEvent is used to sort the events in a block by ascending depth and descending sha1 of event ID.
-// (SPEC: We use the SHA1 of the event ID as an arbitrary tie breaker between events with the same depth)
+// (SPEC: We use the SHA1 of the event ID as an arbitrary tie breaker between events with the same depth).
 type conflictedEvent struct {
 	depth       int64
 	eventIDSHA1 [sha1.Size]byte
@@ -327,7 +327,7 @@ func (s conflictedEventSorter) Swap(i, j int) {
 // to resolve. `authEvents` should be the entire set of auth_events for these `events`.
 // Returns an error if the state resolution algorithm cannot be determined.
 //
-// DEPRECATED: This function does not accurately determine which events are conflicted.
+// Deprecated: This function does not accurately determine which events are conflicted.
 // Use ResolveConflictsNew instead.
 func ResolveConflicts(
 	version RoomVersion,

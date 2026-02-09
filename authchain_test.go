@@ -4,15 +4,15 @@ import (
 	"context"
 	"testing"
 
-	"github.com/matrix-org/gomatrixserverlib"
-	"github.com/matrix-org/gomatrixserverlib/spec"
+	"codefloe.com/pat-s/gomatrixserverlib"
+	"codefloe.com/pat-s/gomatrixserverlib/spec"
 )
 
 func UserIDForSenderTest(roomID spec.RoomID, senderID spec.SenderID) (*spec.UserID, error) {
 	return spec.NewUserID(string(senderID), true)
 }
 
-// A basic sanity check of a linear sequence of common events
+// A basic sanity check of a linear sequence of common events.
 func TestVerifyEventAuthChain(t *testing.T) {
 	ctx := context.Background()
 	testEvents := [][]byte{

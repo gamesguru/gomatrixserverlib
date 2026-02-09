@@ -3,8 +3,8 @@ package fclient
 import (
 	"testing"
 
-	"github.com/matrix-org/gomatrixserverlib"
-	"github.com/matrix-org/gomatrixserverlib/spec"
+	"codefloe.com/pat-s/gomatrixserverlib"
+	"codefloe.com/pat-s/gomatrixserverlib/spec"
 )
 
 var tests = []struct {
@@ -108,7 +108,6 @@ func TestCrossSigningKeyEqual(t *testing.T) {
 }
 
 func BenchmarkEqual(b *testing.B) {
-
 	for i := 0; i < b.N; i++ {
 		for _, tt := range tests {
 			if !tt.s.Equal(tt.other) && tt.expect {

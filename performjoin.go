@@ -7,16 +7,17 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/matrix-org/gomatrixserverlib/spec"
 	"github.com/sirupsen/logrus"
+
+	"codefloe.com/pat-s/gomatrixserverlib/spec"
 )
 
 type PerformJoinInput struct {
-	UserID     *spec.UserID           // The user joining the room
-	RoomID     *spec.RoomID           // The room the user is joining
-	ServerName spec.ServerName        // The server to attempt to join via
-	Content    map[string]interface{} // The membership event content
-	Unsigned   map[string]interface{} // The event unsigned content, if any
+	UserID     *spec.UserID    // The user joining the room
+	RoomID     *spec.RoomID    // The room the user is joining
+	ServerName spec.ServerName // The server to attempt to join via
+	Content    map[string]any  // The membership event content
+	Unsigned   map[string]any  // The event unsigned content, if any
 
 	PrivateKey ed25519.PrivateKey // Used to sign the join event
 	KeyID      KeyID              // Used to sign the join event
@@ -113,7 +114,7 @@ func PerformJoin(
 	}
 
 	if input.Content == nil {
-		input.Content = map[string]interface{}{}
+		input.Content = map[string]any{}
 	}
 
 	var senderID spec.SenderID
@@ -129,7 +130,7 @@ func PerformJoin(
 				ServerName: input.ServerName,
 				Transient:  false,
 				Reachable:  true,
-				Err:        fmt.Errorf("Cannot create user room key"),
+				Err:        fmt.Errorf("cannot create user room key"),
 			}
 		}
 		keyID = "ed25519:1"
@@ -197,7 +198,7 @@ func PerformJoin(
 
 	var respState StateResponse
 	// Try to perform a send_join using the newly built event.
-	respSendJoin, err := fedClient.SendJoin(
+	respSendJoin, err := fedClient.SendJoin( //nolint:contextcheck // Intentionally using background context
 		context.Background(),
 		origOrigin,
 		input.ServerName,
@@ -241,8 +242,10 @@ func PerformJoin(
 	// TODO: better way?
 	if roomVersion == RoomVersionPseudoIDs {
 		stateEvents := respSendJoin.GetStateEvents().UntrustedEvents(roomVersion)
-		events := append(authEvents, stateEvents...)
-		err = storeMXIDMappings(ctx, events, *input.RoomID, input.KeyRing, input.StoreSenderIDFromPublicID)
+		allEvents := make([]PDU, 0, len(authEvents)+len(stateEvents))
+		allEvents = append(allEvents, authEvents...)
+		allEvents = append(allEvents, stateEvents...)
+		err = storeMXIDMappings(ctx, allEvents, *input.RoomID, input.KeyRing, input.StoreSenderIDFromPublicID)
 		if err != nil {
 			return nil, &FederationError{
 				ServerName: input.ServerName,
@@ -259,7 +262,7 @@ func PerformJoin(
 	// we'll still continue to process the join anyway so that we don't waste the effort.
 	// TODO: Can we expand Check here to return a list of missing auth
 	// events rather than failing one at a time?
-	respState, err = CheckSendJoinResponse(
+	respState, err = CheckSendJoinResponse( //nolint:contextcheck // Intentionally using background context
 		context.Background(),
 		roomVersion, StateResponse(respSendJoin),
 		input.KeyRing,
@@ -328,7 +331,7 @@ func setDefaultRoomVersionFromJoinEvent(
 	// we have to do these shenanigans to satisfy sytest, specifically for:
 	// "Outbound federation rejects m.room.create events with an unknown room version"
 	hasEventRefs := true
-	authEvents, ok := joinEvent.AuthEvents.([]interface{})
+	authEvents, ok := joinEvent.AuthEvents.([]any)
 	if ok {
 		if len(authEvents) > 0 {
 			_, ok = authEvents[0].(string)
@@ -347,7 +350,7 @@ func setDefaultRoomVersionFromJoinEvent(
 
 // isWellFormedJoinMemberEvent returns true if the event looks like a legitimate
 // membership event.
-func isWellFormedJoinMemberEvent(event PDU, roomID *spec.RoomID, senderID spec.SenderID) bool { // nolint: interfacer
+func isWellFormedJoinMemberEvent(event PDU, roomID *spec.RoomID, senderID spec.SenderID) bool { //nolint: interfacer
 	if membership, err := event.Membership(); err != nil {
 		return false
 	} else if membership != spec.Join {

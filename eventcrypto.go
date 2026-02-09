@@ -23,10 +23,11 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/matrix-org/gomatrixserverlib/spec"
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
 	"golang.org/x/crypto/ed25519"
+
+	"codefloe.com/pat-s/gomatrixserverlib/spec"
 )
 
 func VerifyAllEventSignatures(ctx context.Context, events []PDU, verifier JSONVerifier, userIDForSender spec.UserIDForSender) []error {
@@ -109,7 +110,7 @@ func VerifyEventSignatures(ctx context.Context, e PDU, verifier JSONVerifier, us
 			}
 		}
 
-		// For restricted join rules, the authorising server should have signed.
+		// For restricted join rules, the authorizing server should have signed.
 		if membership == spec.Join {
 			auth, err := verImpl.RestrictedJoinServername(e.Content())
 			if err != nil {
@@ -119,7 +120,6 @@ func VerifyEventSignatures(ctx context.Context, e PDU, verifier JSONVerifier, us
 				needed[auth] = struct{}{}
 			}
 		}
-
 	}
 
 	redactedJSON, err := verImpl.RedactEventJSON(e.JSON())
@@ -173,7 +173,7 @@ func getMXIDMapping(e PDU) (*MXIDMapping, error) {
 	return content.MXIDMapping, nil
 }
 
-// validateMXIDMappingSignatures validates that the MXIDMapping is correctly signed
+// validateMXIDMappingSignatures validates that the MXIDMapping is correctly signed.
 func validateMXIDMappingSignatures(ctx context.Context, e PDU, mapping MXIDMapping, verifier JSONVerifier, verImpl IRoomVersion) error {
 	mappingBytes, err := json.Marshal(mapping)
 	if err != nil {
@@ -207,10 +207,10 @@ func validateMXIDMappingSignatures(ctx context.Context, e PDU, mapping MXIDMappi
 }
 
 func extractAuthorisedViaServerName(content []byte) (spec.ServerName, error) {
-	if v := gjson.GetBytes(content, "join_authorised_via_users_server"); v.Exists() {
+	if v := gjson.GetBytes(content, "join_authorized_via_users_server"); v.Exists() {
 		_, serverName, err := SplitID('@', v.String())
 		if err != nil {
-			return "", fmt.Errorf("failed to split authorised server: %w", err)
+			return "", fmt.Errorf("failed to split authorized server: %w", err)
 		}
 		return serverName, nil
 	}
@@ -288,7 +288,7 @@ func checkEventContentHash(eventJSON []byte) error {
 	sha256Hash := sha256.Sum256(hashableEventJSON)
 
 	if !bytes.Equal(sha256Hash[:], []byte(hash)) {
-		return fmt.Errorf("Invalid Sha256 content hash: %v != %v", sha256Hash[:], []byte(hash))
+		return fmt.Errorf("invalid Sha256 content hash: %v != %v", sha256Hash[:], []byte(hash))
 	}
 
 	return nil

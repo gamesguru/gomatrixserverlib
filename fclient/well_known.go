@@ -11,12 +11,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/matrix-org/gomatrixserverlib/spec"
+	"codefloe.com/pat-s/gomatrixserverlib/spec"
 )
 
-var (
-	errNoWellKnown = errors.New("No .well-known found")
-)
+var errNoWellKnown = errors.New("no .well-known found")
 
 const WellKnownMaxSize = 50 * 1024 // 50KB
 
@@ -43,7 +41,7 @@ func LookupWellKnown(ctx context.Context, serverNameType spec.ServerName) (*Well
 		return nil, err
 	}
 	// Given well-known should be quite small and fast to fetch, timeout the request after 30s.
-	client := http.Client{Timeout: time.Second * 30}
+	client := http.Client{Timeout: time.Second * 30} //nolint:mnd
 	resp, err := client.Do(req)
 	if err != nil {
 		return nil, err
@@ -51,7 +49,7 @@ func LookupWellKnown(ctx context.Context, serverNameType spec.ServerName) (*Well
 	defer func() {
 		_ = resp.Body.Close()
 	}()
-	if resp.StatusCode != 200 {
+	if resp.StatusCode != http.StatusOK {
 		return nil, errNoWellKnown
 	}
 
@@ -117,7 +115,7 @@ func LookupWellKnown(ctx context.Context, serverNameType spec.ServerName) (*Well
 	}
 
 	if wellKnownResponse.NewAddress == "" {
-		return nil, errors.New("No m.server key found in well-known response")
+		return nil, errors.New("no m.server key found in well-known response")
 	}
 
 	// Return result

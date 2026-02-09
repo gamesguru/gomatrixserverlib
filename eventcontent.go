@@ -23,11 +23,12 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/matrix-org/gomatrixserverlib/spec"
 	"golang.org/x/crypto/ed25519"
+
+	"codefloe.com/pat-s/gomatrixserverlib/spec"
 )
 
-var CreatorPowerLevel = int64(math.Pow(2, 53))
+var CreatorPowerLevel = int64(math.Pow(2, 53)) //nolint:mnd
 
 // CreateContent is the JSON content of a m.room.create event along with
 // the top level keys needed for auth.
@@ -119,7 +120,7 @@ func domainFromID(id string) (string, error) {
 	// Split on the first ":" character since the domain can contain ":"
 	// characters.
 	parts := strings.SplitN(id, ":", 2)
-	if len(parts) != 2 {
+	if len(parts) != 2 { //nolint:mnd
 		// The ID must have a ":" character.
 		return "", errorf("invalid ID: %q", id)
 	}
@@ -140,7 +141,7 @@ type MemberContent struct {
 	ThirdPartyInvite *MemberThirdPartyInvite `json:"third_party_invite,omitempty"`
 	// Restricted join rules require a user with invite permission to be nominated,
 	// so that their membership can be included in the auth events.
-	AuthorisedVia string `json:"join_authorised_via_users_server,omitempty"`
+	AuthorisedVia string `json:"join_authorized_via_users_server,omitempty"`
 
 	// The MXIDMapping used in pseudo ID rooms
 	MXIDMapping *MXIDMapping `json:"mxid_mapping,omitempty"`
@@ -273,8 +274,8 @@ const (
 	HistoryVisibilityJoined        HistoryVisibility = "joined"
 )
 
-// Scan implements sql.Scanner
-func (h *HistoryVisibility) Scan(src interface{}) error {
+// Scan implements sql.Scanner.
+func (h *HistoryVisibility) Scan(src any) error {
 	switch v := src.(type) {
 	case int64:
 		s, ok := hisVisIntToStringMapping[uint8(v)]
@@ -297,7 +298,7 @@ func (h *HistoryVisibility) Scan(src interface{}) error {
 	}
 }
 
-// Value implements sql.Valuer
+// Value implements sql.Valuer.
 func (h HistoryVisibility) Value() (driver.Value, error) {
 	v, ok := hisVisStringToIntMapping[h]
 	if !ok {
@@ -308,9 +309,9 @@ func (h HistoryVisibility) Value() (driver.Value, error) {
 
 var hisVisStringToIntMapping = map[HistoryVisibility]uint8{
 	HistoryVisibilityWorldReadable: 1, // Starting at 1, to avoid confusions with Go default values
-	HistoryVisibilityShared:        2,
-	HistoryVisibilityInvited:       3,
-	HistoryVisibilityJoined:        4,
+	HistoryVisibilityShared:        2, //nolint:mnd
+	HistoryVisibilityInvited:       3, //nolint:mnd
+	HistoryVisibilityJoined:        4, //nolint:mnd
 }
 
 var hisVisIntToStringMapping = map[uint8]HistoryVisibility{
@@ -409,7 +410,7 @@ func (c *PowerLevelContent) NotificationLevel(notification string) int64 {
 	}
 	// https://matrix.org/docs/spec/client_server/r0.6.1#m-room-power-levels
 	// room	integer	The level required to trigger an @room notification. Defaults to 50 if unspecified.
-	return 50
+	return 50 //nolint:mnd
 }
 
 // NewPowerLevelContentFromAuthEvents loads the power level content from the
@@ -430,7 +431,7 @@ func NewPowerLevelContentFromAuthEvents(authEvents AuthEventProvider, creatorUse
 	// https://github.com/matrix-org/synapse/blob/v0.18.5/synapse/api/auth.py#L569
 	// If we want users to be able to set PLs > 100 with power_level_content_override
 	// then we need to set the upper bound: maximum allowable JSON value is (2^53)-1.
-	c.Users = map[string]int64{creatorUserID: 9007199254740991}
+	c.Users = map[string]int64{creatorUserID: 9007199254740991} //nolint:mnd // (2^53)-1, max safe JSON integer
 	// If there is no power level event then the state_default is level 50
 	// https://github.com/matrix-org/synapse/blob/v1.38.0/synapse/event_auth.py#L437
 	// Previously it was 0, but this was changed in:
@@ -450,7 +451,7 @@ func (c *PowerLevelContent) Defaults() {
 	c.EventsDefault = 0
 	c.StateDefault = 50
 	c.Notifications = map[string]int64{
-		"room": 50,
+		"room": 50, //nolint:mnd
 	}
 }
 
@@ -603,7 +604,7 @@ func checkCreateEventV1(event PDU, sender spec.UserID, knownRoomVersion KnownRoo
 	}
 	if c.RoomVersion != nil {
 		if !knownRoomVersion(*c.RoomVersion) {
-			return errorf("create event has unrecognised room version %q", *c.RoomVersion)
+			return errorf("create event has unrecognized room version %q", *c.RoomVersion)
 		}
 	}
 
@@ -627,7 +628,7 @@ func checkCreateEventV3(event PDU, sender spec.UserID, knownRoomVersion KnownRoo
 	}
 	if c.RoomVersion != nil {
 		if !knownRoomVersion(*c.RoomVersion) {
-			return errorf("create event has unrecognised room version %q", *c.RoomVersion)
+			return errorf("create event has unrecognized room version %q", *c.RoomVersion)
 		}
 	}
 	if c.AdditionalCreators != nil {

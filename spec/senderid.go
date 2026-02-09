@@ -22,8 +22,10 @@ import (
 
 type SenderID string
 
-type UserIDForSender func(roomID RoomID, senderID SenderID) (*UserID, error)
-type SenderIDForUser func(roomID RoomID, userID UserID) (*SenderID, error)
+type (
+	UserIDForSender func(roomID RoomID, senderID SenderID) (*UserID, error)
+	SenderIDForUser func(roomID RoomID, userID UserID) (*SenderID, error)
+)
 
 // CreateSenderID is a function used to create the pseudoID private key.
 type CreateSenderID func(ctx context.Context, userID UserID, roomID RoomID, roomVersion string) (SenderID, ed25519.PrivateKey, error)
@@ -31,12 +33,16 @@ type CreateSenderID func(ctx context.Context, userID UserID, roomID RoomID, room
 // StoreSenderIDFromPublicID is a function to store the mxid_mapping after receiving a join event over federation.
 type StoreSenderIDFromPublicID func(ctx context.Context, senderID SenderID, userID string, id RoomID) error
 
-// Create a new sender ID from a private room key
+// Create a new sender ID from a private room key.
 func SenderIDFromPseudoIDKey(key ed25519.PrivateKey) SenderID {
-	return SenderID(Base64Bytes(key.Public().(ed25519.PublicKey)).Encode())
+	pubKey, ok := key.Public().(ed25519.PublicKey)
+	if !ok {
+		panic("ed25519.PrivateKey.Public() returned unexpected type")
+	}
+	return SenderID(Base64Bytes(pubKey).Encode())
 }
 
-// Create a new sender ID from a user ID
+// Create a new sender ID from a user ID.
 func SenderIDFromUserID(user UserID) SenderID {
 	return SenderID(user.String())
 }
@@ -52,7 +58,7 @@ func (s SenderID) RawBytes() (res Base64Bytes, err error) {
 	return res, nil
 }
 
-// Returns true if this SenderID was made using a user ID
+// Returns true if this SenderID was made using a user ID.
 func (s SenderID) IsUserID() bool {
 	// Key is base64, @ is not a valid base64 char
 	// So if string starts with @, then this sender ID must
@@ -60,13 +66,13 @@ func (s SenderID) IsUserID() bool {
 	return string(s)[0] == '@'
 }
 
-// Returns true if this SenderID was made using a pseudo ID
+// Returns true if this SenderID was made using a pseudo ID.
 func (s SenderID) IsPseudoID() bool {
 	return !s.IsUserID()
 }
 
 // Returns the non-nil UserID used to create this SenderID, or nil
-// if this SenderID was not created using a UserID
+// if this SenderID was not created using a UserID.
 func (s SenderID) ToUserID() *UserID {
 	if s.IsUserID() {
 		uID, _ := NewUserID(string(s), true)
@@ -77,7 +83,7 @@ func (s SenderID) ToUserID() *UserID {
 }
 
 // Returns the non-nil room public key (pseudo ID) used to create this
-// SenderID, or nil if this SenderID was not created using a pseudo ID
+// SenderID, or nil if this SenderID was not created using a pseudo ID.
 func (s SenderID) ToPseudoID() *ed25519.PublicKey {
 	if s.IsPseudoID() {
 		decoded, err := s.RawBytes()

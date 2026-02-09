@@ -14,19 +14,19 @@ import (
 func makeStickyEvent(t *testing.T, durationMS int64, originTS int64, stateKey *string) PDU {
 	verImpl := MustGetRoomVersion(RoomVersionV12)
 
-	m := map[string]interface{}{
+	m := map[string]any{
 		"sticky": map[string]int64{
 			"duration_ms": durationMS,
 		},
 		"room_id": "!L6nFTAu28CEi9yn9up1SUiKtTNnKt2yomgy2JFRT2Zk",
 		"type":    "m.room.message",
 		"sender":  "@user:localhost",
-		"content": map[string]interface{}{
+		"content": map[string]any{
 			"body":    "Hello, World!",
 			"msgtype": "m.text",
 		},
 		"origin_server_ts": originTS,
-		"unsigned":         make(map[string]interface{}),
+		"unsigned":         make(map[string]any),
 		"depth":            1,
 		"origin":           "localhost",
 		"prev_events":      []string{"$65vISquU7WNlFCaJeJ5uohlX4LVEPx5yEkAc1hpRf44"},
@@ -34,7 +34,7 @@ func makeStickyEvent(t *testing.T, durationMS int64, originTS int64, stateKey *s
 		"hashes": map[string]string{
 			"sha256": "1234567890",
 		},
-		"signatures": map[string]interface{}{
+		"signatures": map[string]any{
 			"localhost": map[string]string{
 				"ed25519:localhost": "doesn't matter because it's not checked",
 			},

@@ -1,32 +1,32 @@
 package spec
 
 const (
-	// Join is the string constant "join"
+	// Join is the string constant "join".
 	Join = "join"
-	// Ban is the string constant "ban"
+	// Ban is the string constant "ban".
 	Ban = "ban"
-	// Leave is the string constant "leave"
+	// Leave is the string constant "leave".
 	Leave = "leave"
-	// Invite is the string constant "invite"
+	// Invite is the string constant "invite".
 	Invite = "invite"
-	// Knock is the string constant "knock"
+	// Knock is the string constant "knock".
 	Knock = "knock"
-	// Restricted is the string constant "restricted"
+	// Restricted is the string constant "restricted".
 	Restricted = "restricted"
 	// NOTSPEC: Restricted is the string constant "knock_restricted" (MSC3787)
-	// REVIEW: the MSC is merged though... so is this specced? Idk.
+	// REVIEW: the MSC is merged though... So is this specced? Idk.
 	KnockRestricted = "knock_restricted"
 	// NOTSPEC: Peek is the string constant "peek" (MSC2753, used as the label in the sync block)
 	Peek = "peek"
-	// Public is the string constant "public"
+	// Public is the string constant "public".
 	Public = "public"
-	// WorldReadable is the string constant "world_readable"
+	// WorldReadable is the string constant "world_readable".
 	WorldReadable = "world_readable"
-	// Room creation preset enum used to create private rooms
+	// Room creation preset enum used to create private rooms.
 	PresetPrivateChat = "private_chat"
-	// Room creation preset enum used to create trusted private rooms
+	// Room creation preset enum used to create trusted private rooms.
 	PresetTrustedPrivateChat = "trusted_private_chat"
-	// Room creation preset enum used to create public rooms
+	// Room creation preset enum used to create public rooms.
 	PresetPublicChat = "public_chat"
 	// MRoomCreate https://matrix.org/docs/spec/client_server/r0.2.0.html#m-room-create
 	MRoomCreate = "m.room.create"

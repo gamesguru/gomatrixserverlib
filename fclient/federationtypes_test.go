@@ -7,14 +7,17 @@ import (
 	"unicode"
 
 	"github.com/google/go-cmp/cmp"
-	"github.com/matrix-org/gomatrixserverlib/spec"
+
+	"codefloe.com/pat-s/gomatrixserverlib/spec"
 )
 
-const emptyRespStateResponse = `{"pdus":[],"auth_chain":[]}`
-const emptyRespSendJoinResponse = `{"state":[],"auth_chain":[],"origin":""}`
+const (
+	emptyRespStateResponse    = `{"pdus":[],"auth_chain":[]}`
+	emptyRespSendJoinResponse = `{"state":[],"auth_chain":[],"origin":""}`
+)
 
 func TestParseServerName(t *testing.T) {
-	validTests := map[string][]interface{}{
+	validTests := map[string][]any{
 		"www.example.org:1234":         {"www.example.org", 1234},
 		"www.example.org":              {"www.example.org", -1},
 		"1234.example.com":             {"1234.example.com", -1},
@@ -30,7 +33,11 @@ func TestParseServerName(t *testing.T) {
 			t.Errorf("Expected serverName '%s' to be parsed as valid, but was not", input)
 		}
 
-		if host != output[0] || port != output[1].(int) {
+		expectedPort, ok := output[1].(int)
+		if !ok {
+			t.Fatalf("Expected port for '%s' to be int, but was %T", input, output[1])
+		}
+		if host != output[0] || port != expectedPort {
 			t.Errorf(
 				"Expected serverName '%s' to be cleaned and validated to '%s', %d, got '%s', %d",
 				input, output[0], output[1], host, port,

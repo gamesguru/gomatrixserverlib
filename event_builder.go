@@ -5,10 +5,11 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/matrix-org/gomatrixserverlib/spec"
 	"github.com/matrix-org/util"
 	"github.com/tidwall/sjson"
 	"golang.org/x/crypto/ed25519"
+
+	"codefloe.com/pat-s/gomatrixserverlib/spec"
 )
 
 // An EventBuilder is used to build a new event.
@@ -25,10 +26,10 @@ type EventBuilder struct {
 	StateKey *string `json:"state_key,omitempty"`
 	// The events that immediately preceded this event in the room history. This can be
 	// either []eventReference for room v1/v2, and []string for room v3 onwards.
-	PrevEvents interface{} `json:"prev_events"`
+	PrevEvents any `json:"prev_events"`
 	// The events needed to authenticate this event. This can be
 	// either []eventReference for room v1/v2, and []string for room v3 onwards.
-	AuthEvents interface{} `json:"auth_events"`
+	AuthEvents any `json:"auth_events"`
 	// Previous state events, for MSC4242 state dag rooms only. Pointer to allow [] to encode for the create event.
 	PrevStateEvents *[]string `json:"prev_state_events,omitempty"`
 	// The event ID of the event being redacted if this event is a "m.room.redaction".
@@ -48,13 +49,13 @@ type EventBuilder struct {
 }
 
 // SetContent sets the JSON content key of the event.
-func (eb *EventBuilder) SetContent(content interface{}) (err error) {
+func (eb *EventBuilder) SetContent(content any) (err error) {
 	eb.Content, err = json.Marshal(content)
 	return
 }
 
 // SetUnsigned sets the JSON unsigned key of the event.
-func (eb *EventBuilder) SetUnsigned(unsigned interface{}) (err error) {
+func (eb *EventBuilder) SetUnsigned(unsigned any) (err error) {
 	eb.Unsigned, err = json.Marshal(unsigned)
 	return
 }
@@ -109,22 +110,28 @@ func toEventReference(data any) []eventReference {
 		return newEvents
 	case []eventReference:
 		return evs
-	case []interface{}:
+	case []any:
 		evRefs := make([]eventReference, 0, len(evs))
 		for _, b := range evs {
 			evID, ok := b.(string)
 			if ok {
 				evRefs = append(evRefs, eventReference{
 					EventID:     evID,
-					EventSHA256: eventHashFromEventID(evID)},
+					EventSHA256: eventHashFromEventID(evID),
+				},
 				)
 				continue
 			}
-			ev, ok := b.([]interface{})
+			ev, ok := b.([]any)
 			if ok {
+				evID, ok := ev[0].(string)
+				if !ok {
+					continue
+				}
 				evRefs = append(evRefs, eventReference{
-					EventID:     ev[0].(string),
-					EventSHA256: eventHashFromEventID(ev[0].(string))},
+					EventID:     evID,
+					EventSHA256: eventHashFromEventID(evID),
+				},
 				)
 				continue
 			}
@@ -166,7 +173,7 @@ func (eb *EventBuilder) Build(
 	}
 	eventStruct.EventBuilder = *eb
 	if eventIDFormat == EventIDFormatV1 {
-		eventStruct.EventID = fmt.Sprintf("$%s:%s", util.RandomString(16), origin)
+		eventStruct.EventID = fmt.Sprintf("$%s:%s", util.RandomString(16), origin) //nolint:mnd
 	}
 	if eb.version.DomainlessRoomIDs() && eb.Type == spec.MRoomCreate && eb.StateKey != nil && eb.RoomID != "" {
 		return nil, fmt.Errorf("EventBuilder.Build: create event must have no room ID but %s was provided", eb.RoomID)

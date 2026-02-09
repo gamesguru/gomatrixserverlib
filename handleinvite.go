@@ -19,10 +19,11 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/matrix-org/gomatrixserverlib/spec"
 	"github.com/matrix-org/util"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/crypto/ed25519"
+
+	"codefloe.com/pat-s/gomatrixserverlib/spec"
 )
 
 type HandleInviteInput struct {
@@ -52,7 +53,7 @@ type HandleInviteV3Input struct {
 
 // HandleInvite - Ensures the incoming invite request is valid and signs the event
 // to return back to the remote server.
-// On success returns a fully formed & signed Invite Event
+// On success returns a fully formed & signed Invite Event.
 func HandleInvite(ctx context.Context, input HandleInviteInput) (PDU, error) {
 	if input.RoomQuerier == nil || input.MembershipQuerier == nil || input.StateQuerier == nil || input.UserIDQuerier == nil {
 		panic("Missing valid Querier")

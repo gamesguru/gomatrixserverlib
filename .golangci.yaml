@@ -87,7 +87,7 @@ formatters:
       sections:
         - standard
         - default
-        - prefix(github.com/matrix-org/gomatrixserverlib)
+        - prefix(codefloe.com/pat-s/gomatrixserverlib)
       custom-order: true
     gofmt:
       simplify: true

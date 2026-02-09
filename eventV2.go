@@ -7,10 +7,11 @@ import (
 	"fmt"
 	"unicode/utf8"
 
-	"github.com/matrix-org/gomatrixserverlib/spec"
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
 	"golang.org/x/crypto/ed25519"
+
+	"codefloe.com/pat-s/gomatrixserverlib/spec"
 )
 
 type eventV2 struct {
@@ -32,15 +33,15 @@ func (e *eventV2) PrevStateEventIDs() []string {
 	return e.PrevStateEvents
 }
 
-// MarshalJSON implements json.Marshaller
+// MarshalJSON implements json.Marshaller.
 func (e *eventV2) MarshalJSON() ([]byte, error) {
 	if e.eventJSON == nil {
-		return nil, fmt.Errorf("gomatrixserverlib: cannot serialise uninitialised Event")
+		return nil, fmt.Errorf("gomatrixserverlib: cannot serialize uninitialised Event")
 	}
 	return e.eventJSON, nil
 }
 
-func (e *eventV2) SetUnsigned(unsigned interface{}) (PDU, error) {
+func (e *eventV2) SetUnsigned(unsigned any) (PDU, error) {
 	var eventAsMap map[string]spec.RawJSON
 	var err error
 	if err = json.Unmarshal(e.eventJSON, &eventAsMap); err != nil {
@@ -87,21 +88,21 @@ func (e *eventV2) Redact() {
 	}
 	verImpl, err := GetRoomVersion(e.roomVersion)
 	if err != nil {
-		panic(fmt.Errorf("gomatrixserverlib: invalid event %v", err))
+		panic(fmt.Errorf("gomatrixserverlib: invalid event %w", err))
 	}
 	eventJSON, err := verImpl.RedactEventJSON(e.eventJSON)
 	if err != nil {
 		// This is unreachable for events created with EventBuilder.Build or NewEventFromUntrustedJSON
-		panic(fmt.Errorf("gomatrixserverlib: invalid event %v", err))
+		panic(fmt.Errorf("gomatrixserverlib: invalid event %w", err))
 	}
 	if eventJSON, err = EnforcedCanonicalJSON(eventJSON, e.roomVersion); err != nil {
 		// This is unreachable for events created with EventBuilder.Build or NewEventFromUntrustedJSON
-		panic(fmt.Errorf("gomatrixserverlib: invalid event %v", err))
+		panic(fmt.Errorf("gomatrixserverlib: invalid event %w", err))
 	}
 	var res eventV2
 	err = json.Unmarshal(eventJSON, &res)
 	if err != nil {
-		panic(fmt.Errorf("gomatrixserverlib: Redact failed %v", err))
+		panic(fmt.Errorf("gomatrixserverlib: Redact failed %w", err))
 	}
 	res.redacted = true
 	res.eventJSON = eventJSON
@@ -113,11 +114,11 @@ func (e *eventV2) Sign(signingName string, keyID KeyID, privateKey ed25519.Priva
 	eventJSON, err := signEvent(signingName, keyID, privateKey, e.eventJSON, e.roomVersion)
 	if err != nil {
 		// This is unreachable for events created with EventBuilder.Build or NewEventFromUntrustedJSON
-		panic(fmt.Errorf("gomatrixserverlib: invalid event %v (%q)", err, string(e.eventJSON)))
+		panic(fmt.Errorf("gomatrixserverlib: invalid event %w (%q)", err, string(e.eventJSON)))
 	}
 	if eventJSON, err = EnforcedCanonicalJSON(eventJSON, e.roomVersion); err != nil {
 		// This is unreachable for events created with EventBuilder.Build or NewEventFromUntrustedJSON
-		panic(fmt.Errorf("gomatrixserverlib: invalid event %v (%q)", err, string(e.eventJSON)))
+		panic(fmt.Errorf("gomatrixserverlib: invalid event %w (%q)", err, string(e.eventJSON)))
 	}
 	res := &e
 	(*res).eventJSON = eventJSON
@@ -215,7 +216,7 @@ var stateDAGRoomVersions = map[RoomVersion]struct{}{
 	RoomVersionStateDAGs: {},
 }
 
-func CheckFields(input PDU) error { // nolint: gocyclo
+func CheckFields(input PDU) error { //nolint: gocyclo
 	// don't check auth event IDs in auth DAG rooms as it doesn't exist.
 	_, stateDAGs := stateDAGRoomVersions[input.Version()]
 	if !stateDAGs && input.AuthEventIDs() == nil {

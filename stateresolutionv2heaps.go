@@ -17,7 +17,7 @@ package gomatrixserverlib
 import (
 	"strings"
 
-	"github.com/matrix-org/gomatrixserverlib/spec"
+	"codefloe.com/pat-s/gomatrixserverlib/spec"
 )
 
 // A stateResV2ConflictedPowerLevel is used to sort the events by effective
@@ -37,7 +37,7 @@ type stateResV2ConflictedPowerLevel struct {
 // ensures that the results are deterministic.
 type stateResV2ConflictedPowerLevelHeap []*stateResV2ConflictedPowerLevel
 
-// Less implements sort.Interface
+// Less implements sort.Interface.
 func sortStateResV2ConflictedPowerLevelHeap(a, b *stateResV2ConflictedPowerLevel) int {
 	// Try to tiebreak on the effective power level
 	if a.powerLevel > b.powerLevel {
@@ -56,15 +56,15 @@ func sortStateResV2ConflictedPowerLevelHeap(a, b *stateResV2ConflictedPowerLevel
 	}
 	// If we've reached here then s[i].originServerTS == s[j].originServerTS
 	// so instead try to tiebreak on a lexicographical comparison of the event ID
-	return strings.Compare(a.eventID[:], b.eventID[:])
+	return strings.Compare(a.eventID, b.eventID)
 }
 
-// Push implements heap.Interface
+// Push implements heap.Interface.
 func (s *stateResV2ConflictedPowerLevelHeap) Push(x *stateResV2ConflictedPowerLevel) {
 	*s = append(*s, x)
 }
 
-// Pop implements heap.Interface
+// Pop implements heap.Interface.
 func (s *stateResV2ConflictedPowerLevelHeap) Pop() *stateResV2ConflictedPowerLevel {
 	old := *s
 	n := len(old)
@@ -120,12 +120,12 @@ func sortStateResV2ConflictedOtherHeap(a, b *stateResV2ConflictedOther) int {
 	return strings.Compare(a.eventID, b.eventID)
 }
 
-// Push implements heap.Interface
+// Push implements heap.Interface.
 func (s *stateResV2ConflictedOtherHeap) Push(x *stateResV2ConflictedOther) {
 	*s = append(*s, x)
 }
 
-// Pop implements heap.Interface
+// Pop implements heap.Interface.
 func (s *stateResV2ConflictedOtherHeap) Pop() *stateResV2ConflictedOther {
 	old := *s
 	n := len(old)

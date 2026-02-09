@@ -4,9 +4,10 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/matrix-org/gomatrixserverlib/spec"
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
+
+	"codefloe.com/pat-s/gomatrixserverlib/spec"
 )
 
 // RoomVersion refers to the room version for a specific room.
@@ -81,7 +82,7 @@ const (
 
 // Event ID format constants.
 const (
-	EventIDFormatV1 EventIDFormat = iota + 1 // randomised
+	EventIDFormatV1 EventIDFormat = iota + 1 // randomized
 	EventIDFormatV2                          // base64-encoded hash of event
 	EventIDFormatV3                          // URL-safe base64-encoded hash of event
 )
@@ -496,7 +497,7 @@ func StableRoomVersions() map[RoomVersion]IRoomVersion {
 	return versions
 }
 
-// SetRoomVersion sets a room version implementation so it is recognised by gomatrixserverlib.
+// SetRoomVersion sets a room version implementation so it is recognized by gomatrixserverlib.
 // This is useful when you are testing custom room versions which gomatrixserverlib may be unaware of,
 // e.g for Complement usage. Full room version impls should be defined in gomatrixserverlib, but
 // partial impls for testing can be set here.
@@ -598,7 +599,7 @@ func (v RoomVersionImpl) CheckRestrictedJoinsAllowed() error {
 }
 
 // RestrictedJoinServername returns the severName from a potentially existing
-// join_authorised_via_users_server content field. Used to verify event signatures.
+// join_authorized_via_users_server content field. Used to verify event signatures.
 func (v RoomVersionImpl) RestrictedJoinServername(content []byte) (spec.ServerName, error) {
 	return v.restrictedJoinServernameFunc(content)
 }
@@ -649,6 +650,7 @@ func (v RoomVersionImpl) NewEventBuilder() *EventBuilder {
 		version: v,
 	}
 }
+
 func (v RoomVersionImpl) NewEventBuilderFromProtoEvent(pe *ProtoEvent) *EventBuilder {
 	eb := v.NewEventBuilder()
 	// for now copies all fields, but we should be specific depending on the room version

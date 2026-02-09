@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/matrix-org/gomatrixserverlib/spec"
+	"codefloe.com/pat-s/gomatrixserverlib/spec"
 )
 
 // EventLoadResult is the result of loading and verifying an event in the EventsLoader.
@@ -28,7 +28,7 @@ type EventsLoader struct {
 	performSoftFailCheck bool
 }
 
-// NewEventsLoader returns a new events loader
+// NewEventsLoader returns a new events loader.
 func NewEventsLoader(roomVer RoomVersion, keyRing JSONVerifier, stateProvider StateProvider, provider EventProvider, performSoftFailCheck bool) *EventsLoader {
 	return &EventsLoader{
 		roomVer:              roomVer,

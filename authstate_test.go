@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/matrix-org/gomatrixserverlib/spec"
+	"codefloe.com/pat-s/gomatrixserverlib/spec"
 )
 
 func UserIDForSenderTest(roomID spec.RoomID, senderID spec.SenderID) (*spec.UserID, error) {
@@ -19,6 +19,7 @@ type TestStateProvider struct {
 func (p *TestStateProvider) StateIDsBeforeEvent(ctx context.Context, atEvent PDU) ([]string, error) {
 	return p.StateIDs, nil
 }
+
 func (p *TestStateProvider) StateBeforeEvent(ctx context.Context, roomVer RoomVersion, event PDU, eventIDs []string) (map[string]PDU, error) {
 	result := make(map[string]PDU, len(p.Events))
 	for i := range p.Events {

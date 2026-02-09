@@ -19,9 +19,10 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/matrix-org/gomatrixserverlib/spec"
 	"github.com/matrix-org/util"
 	"github.com/sirupsen/logrus"
+
+	"codefloe.com/pat-s/gomatrixserverlib/spec"
 )
 
 type RoomQuerier interface {
@@ -66,12 +67,12 @@ func NewInviteStrippedState(event PDU) (ss InviteStrippedState) {
 	return
 }
 
-// MarshalJSON implements json.Marshaller
+// MarshalJSON implements json.Marshaller.
 func (i InviteStrippedState) MarshalJSON() ([]byte, error) {
 	return json.Marshal(i.fields)
 }
 
-// UnmarshalJSON implements json.Unmarshaller
+// UnmarshalJSON implements json.Unmarshaller.
 func (i *InviteStrippedState) UnmarshalJSON(data []byte) error {
 	return json.Unmarshal(data, &i.fields)
 }
@@ -132,7 +133,6 @@ func abortIfAlreadyJoined(ctx context.Context, roomID spec.RoomID, invitedUser s
 	if err != nil {
 		util.GetLogger(ctx).WithError(err).Error("failed getting user membership")
 		return spec.InternalServerError{}
-
 	}
 	isAlreadyJoined := (membership == spec.Join)
 
@@ -163,7 +163,7 @@ func abortIfAlreadyJoined(ctx context.Context, roomID spec.RoomID, invitedUser s
 		//    room.
 		// For now we will implement option 2. Since in the abesence of a retry
 		// mechanism it will be equivalent to option 1, and we don't have a
-		// signalling mechanism to implement option 3.
+		// signaling mechanism to implement option 3.
 		util.GetLogger(ctx).Error("user is already joined to room")
 		return spec.Forbidden("user is already joined to room")
 	}
@@ -171,7 +171,7 @@ func abortIfAlreadyJoined(ctx context.Context, roomID spec.RoomID, invitedUser s
 }
 
 func createInviteLogger(ctx context.Context, roomID spec.RoomID, inviter spec.UserID, invitee spec.UserID, eventID string) *logrus.Entry {
-	return util.GetLogger(ctx).WithFields(map[string]interface{}{
+	return util.GetLogger(ctx).WithFields(map[string]any{
 		"inviter":  inviter.String(),
 		"invitee":  invitee.String(),
 		"room_id":  roomID.String(),
@@ -195,11 +195,11 @@ func setUnsignedFieldForInvite(event PDU, inviteState []InviteStrippedState) err
 
 func setUnsignedFieldForProtoInvite(event *ProtoEvent, inviteState []InviteStrippedState) error {
 	if len(inviteState) == 0 {
-		if err := event.SetUnsigned(map[string]interface{}{"invite_room_state": struct{}{}}); err != nil {
+		if err := event.SetUnsigned(map[string]any{"invite_room_state": struct{}{}}); err != nil {
 			return fmt.Errorf("event.SetUnsignedField: %w", err)
 		}
 	} else {
-		if err := event.SetUnsigned(map[string]interface{}{"invite_room_state": inviteState}); err != nil {
+		if err := event.SetUnsigned(map[string]any{"invite_room_state": inviteState}); err != nil {
 			return fmt.Errorf("event.SetUnsignedField: %w", err)
 		}
 	}

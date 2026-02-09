@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"testing"
 
-	"github.com/matrix-org/gomatrixserverlib"
-	"github.com/matrix-org/gomatrixserverlib/spec"
+	"codefloe.com/pat-s/gomatrixserverlib"
+	"codefloe.com/pat-s/gomatrixserverlib/spec"
 )
 
 func TestMarshalInviteV3Request(t *testing.T) {
@@ -61,14 +61,12 @@ func TestMarshalInviteV3Request(t *testing.T) {
 	}
 	if newRequest.Event().SenderID != senderID {
 		t.Fatalf("unmatched senderID. expected: %v, got: %v", newRequest.Event().SenderID, senderID)
-
 	}
 	if newRequest.Event().RoomID != roomID {
 		t.Fatalf("unmatched roomID. expected: %v, got: %v", newRequest.Event().RoomID, roomID)
 	}
 	if newRequest.Event().Type != eventType {
 		t.Fatalf("unmatched type. expected: %v, got: %v", newRequest.Event().Type, eventType)
-
 	}
 	if *newRequest.Event().StateKey != stateKey {
 		t.Fatalf("unmatched state key. expected: %v, got: %v", *newRequest.Event().StateKey, stateKey)

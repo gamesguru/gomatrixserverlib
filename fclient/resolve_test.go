@@ -7,15 +7,16 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/matrix-org/gomatrixserverlib/spec"
 	"github.com/miekg/dns"
 	"gopkg.in/h2non/gock.v1"
+
+	"codefloe.com/pat-s/gomatrixserverlib/spec"
 )
 
 // assertCritical checks whether the second parameter it gets has the same type
 // and value as the third one, and aborts the current test if that's not the
 // case.
-func assertCritical(t *testing.T, val, expected interface{}) {
+func assertCritical(t *testing.T, val, expected any) {
 	if !reflect.DeepEqual(val, expected) {
 		fmt.Printf("expected %v to equal %v\n", val, expected)
 		t.FailNow()
@@ -237,11 +238,11 @@ func setupFakeDNS(answerSRV bool) (cleanup func()) {
 	// Using 0 as the port will tell the system to find a suitable available port.
 	udpAddr, err := net.ResolveUDPAddr("udp", "127.0.0.1:0")
 	if err != nil {
-		panic(fmt.Errorf("failed to ResolveUDPAddr: %v", err))
+		panic(fmt.Errorf("failed to ResolveUDPAddr: %w", err))
 	}
 	udpConn, err := net.ListenUDP("udp", udpAddr)
 	if err != nil {
-		panic(fmt.Errorf("failed to ListenUDP: %v", err))
+		panic(fmt.Errorf("failed to ListenUDP: %w", err))
 	}
 
 	// Get the actual address and port we're listening on.
@@ -288,8 +289,7 @@ type dnsHandler struct {
 func (h *dnsHandler) ServeDNS(w dns.ResponseWriter, r *dns.Msg) {
 	msg := dns.Msg{}
 	msg.SetReply(r)
-	switch r.Question[0].Qtype {
-	case dns.TypeSRV:
+	if r.Question[0].Qtype == dns.TypeSRV {
 		if h.answerSRV {
 			msg.Authoritative = true
 			domain := msg.Question[0].Name

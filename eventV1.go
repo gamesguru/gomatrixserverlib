@@ -6,10 +6,11 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/matrix-org/gomatrixserverlib/spec"
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
 	"golang.org/x/crypto/ed25519"
+
+	"codefloe.com/pat-s/gomatrixserverlib/spec"
 )
 
 type stickyEventData struct {
@@ -31,10 +32,10 @@ type eventV1 struct {
 	StableSticky   stickyEventData `json:"sticky,omitempty"`
 }
 
-// MarshalJSON implements json.Marshaller
+// MarshalJSON implements json.Marshaller.
 func (e eventV1) MarshalJSON() ([]byte, error) {
 	if e.eventJSON == nil {
-		return nil, fmt.Errorf("gomatrixserverlib: cannot serialise uninitialised Event")
+		return nil, fmt.Errorf("gomatrixserverlib: cannot serialize uninitialised Event")
 	}
 	return e.eventJSON, nil
 }
@@ -158,21 +159,21 @@ func (e *eventV1) Redact() {
 	}
 	verImpl, err := GetRoomVersion(e.roomVersion)
 	if err != nil {
-		panic(fmt.Errorf("gomatrixserverlib: invalid event %v", err))
+		panic(fmt.Errorf("gomatrixserverlib: invalid event %w", err))
 	}
 	eventJSON, err := verImpl.RedactEventJSON(e.eventJSON)
 	if err != nil {
 		// This is unreachable for events created with EventBuilder.Build or NewEventFromUntrustedJSON
-		panic(fmt.Errorf("gomatrixserverlib: invalid event %v", err))
+		panic(fmt.Errorf("gomatrixserverlib: invalid event %w", err))
 	}
 	if eventJSON, err = EnforcedCanonicalJSON(eventJSON, e.roomVersion); err != nil {
 		// This is unreachable for events created with EventBuilder.Build or NewEventFromUntrustedJSON
-		panic(fmt.Errorf("gomatrixserverlib: invalid event %v", err))
+		panic(fmt.Errorf("gomatrixserverlib: invalid event %w", err))
 	}
 	var res eventV1
 	err = json.Unmarshal(eventJSON, &res)
 	if err != nil {
-		panic(fmt.Errorf("gomatrixserverlib: populateFieldsFromJSON failed %v", err))
+		panic(fmt.Errorf("gomatrixserverlib: populateFieldsFromJSON failed %w", err))
 	}
 
 	res.redacted = true
@@ -189,7 +190,7 @@ func (e *eventV1) Unsigned() []byte {
 	return e.eventFields.Unsigned
 }
 
-func (e *eventV1) SetUnsigned(unsigned interface{}) (PDU, error) {
+func (e *eventV1) SetUnsigned(unsigned any) (PDU, error) {
 	var eventAsMap map[string]spec.RawJSON
 	var err error
 	if err = json.Unmarshal(e.eventJSON, &eventAsMap); err != nil {
@@ -213,7 +214,7 @@ func (e *eventV1) SetUnsigned(unsigned interface{}) (PDU, error) {
 	return &result, nil
 }
 
-func (e *eventV1) SetUnsignedField(path string, value interface{}) error {
+func (e *eventV1) SetUnsignedField(path string, value any) error {
 	// The safest way is to change the unsigned json and then reparse the
 	// event fully. But since we are only changing the unsigned section,
 	// which doesn't affect the signatures or hashes, we can cheat and
@@ -238,11 +239,11 @@ func (e *eventV1) Sign(signingName string, keyID KeyID, privateKey ed25519.Priva
 	eventJSON, err := signEvent(signingName, keyID, privateKey, e.eventJSON, e.roomVersion)
 	if err != nil {
 		// This is unreachable for events created with EventBuilder.Build or NewEventFromUntrustedJSON
-		panic(fmt.Errorf("gomatrixserverlib: invalid event %v (%q)", err, string(e.eventJSON)))
+		panic(fmt.Errorf("gomatrixserverlib: invalid event %w (%q)", err, string(e.eventJSON)))
 	}
 	if eventJSON, err = EnforcedCanonicalJSON(eventJSON, e.roomVersion); err != nil {
 		// This is unreachable for events created with EventBuilder.Build or NewEventFromUntrustedJSON
-		panic(fmt.Errorf("gomatrixserverlib: invalid event %v (%q)", err, string(e.eventJSON)))
+		panic(fmt.Errorf("gomatrixserverlib: invalid event %w (%q)", err, string(e.eventJSON)))
 	}
 	res := &e
 	(*res).eventJSON = eventJSON
@@ -288,8 +289,9 @@ func (e *eventV1) calculatedStickyEndTime(startTime time.Time) time.Time {
 	if durationMillis == 0 {
 		return time.Time{} // zero, not sticky
 	}
-	if durationMillis > 3600000 {
-		durationMillis = 3600000 // cap at 1 hour
+	const maxStickyDurationMs = 3600000 // 1 hour in milliseconds
+	if durationMillis > maxStickyDurationMs {
+		durationMillis = maxStickyDurationMs
 	}
 
 	return startTime.Add(time.Duration(durationMillis) * time.Millisecond)

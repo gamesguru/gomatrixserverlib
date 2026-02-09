@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/matrix-org/gomatrixserverlib/spec"
+	"codefloe.com/pat-s/gomatrixserverlib/spec"
 )
 
 const (
@@ -29,12 +29,15 @@ func (t *testBackfillRequester) StateIDsBeforeEvent(ctx context.Context, atEvent
 	t.callOrderForStateIDsBeforeEvent = append(t.callOrderForStateIDsBeforeEvent, atEvent.EventID())
 	return t.stateIDsAtEvent[atEvent.EventID()], nil
 }
+
 func (t *testBackfillRequester) StateBeforeEvent(ctx context.Context, roomVer RoomVersion, event PDU, eventIDs []string) (map[string]PDU, error) {
 	return nil, fmt.Errorf("not implemented")
 }
+
 func (t *testBackfillRequester) ServersAtEvent(ctx context.Context, roomID, eventID string) []spec.ServerName {
 	return t.servers
 }
+
 func (t *testBackfillRequester) Backfill(ctx context.Context, origin, server spec.ServerName, roomID string, limit int, fromEventIDs []string) (Transaction, error) {
 	txn, err := t.backfillFn(origin, server, roomID, fromEventIDs, limit)
 	if err != nil {
@@ -42,6 +45,7 @@ func (t *testBackfillRequester) Backfill(ctx context.Context, origin, server spe
 	}
 	return *txn, nil
 }
+
 func (t *testBackfillRequester) ProvideEvents(roomVer RoomVersion, eventIDs []string) (result []PDU, err error) {
 	eventMap := make(map[string]PDU)
 	for _, eventBytes := range t.authEventsToProvide {
@@ -101,7 +105,8 @@ func TestRequestBackfillMultipleServers(t *testing.T) {
 			if roomID != testRoomID {
 				return nil, fmt.Errorf("bad room id: %s", roomID)
 			}
-			if server == serverA {
+			switch server {
+			case serverA:
 				// server A returns events 1 and 3.
 				return &Transaction{
 					Origin:         origin,
@@ -110,7 +115,7 @@ func TestRequestBackfillMultipleServers(t *testing.T) {
 						testBackfillEvents[1], testBackfillEvents[3],
 					},
 				}, nil
-			} else if server == serverB {
+			case serverB:
 				// server B returns events 0 and 2 and 3.
 				return &Transaction{
 					Origin:         origin,
@@ -192,7 +197,6 @@ func TestRequestBackfillTopologicalSort(t *testing.T) {
 			)
 		}
 	}
-
 }
 
 func TestRequestBackfillError(t *testing.T) {

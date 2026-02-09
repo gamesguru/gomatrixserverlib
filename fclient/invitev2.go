@@ -4,8 +4,9 @@ import (
 	"encoding/json"
 	"errors"
 
-	"github.com/matrix-org/gomatrixserverlib"
 	"github.com/tidwall/gjson"
+
+	"codefloe.com/pat-s/gomatrixserverlib"
 )
 
 // InviteV2Request and InviteV2StrippedState are defined in
@@ -41,12 +42,12 @@ type InviteV2Request struct {
 	}
 }
 
-// MarshalJSON implements json.Marshaller
+// MarshalJSON implements json.Marshaller.
 func (i InviteV2Request) MarshalJSON() ([]byte, error) {
 	return json.Marshal(i.fields)
 }
 
-// UnmarshalJSON implements json.Unmarshaller
+// UnmarshalJSON implements json.Unmarshaller.
 func (i *InviteV2Request) UnmarshalJSON(data []byte) error {
 	err := json.Unmarshal(data, &i.fields.inviteV2RequestHeaders)
 	if err != nil {
