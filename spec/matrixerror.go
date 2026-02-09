@@ -51,6 +51,7 @@ const (
 	ErrorSessionNotValidated         MatrixErrorCode = "M_SESSION_NOT_VALIDATED"
 	ErrorThreePIDInUse               MatrixErrorCode = "M_THREEPID_IN_USE"
 	ErrorThreePIDAuthFailed          MatrixErrorCode = "M_THREEPID_AUTH_FAILED"
+	ErrorTooLarge                    MatrixErrorCode = "M_TOO_LARGE"
 )
 
 // MatrixError represents the "standard error response" in Matrix.
@@ -187,6 +188,12 @@ func MissingParam(msg string) MatrixError {
 // determine whether to allow a restricted join or not.
 func UnableToAuthoriseJoin(msg string) MatrixError {
 	return MatrixError{ErrorUnableToAuthoriseJoin, msg}
+}
+
+// TooLarge is an error that is returned when the client tries to upload
+// content that exceeds the server's size limit.
+func TooLarge(msg string) MatrixError {
+	return MatrixError{ErrorTooLarge, msg}
 }
 
 // LeaveServerNoticeError is an error returned when trying to reject an invite
