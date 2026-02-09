@@ -63,7 +63,7 @@ func (s SenderID) IsUserID() bool {
 	// Key is base64, @ is not a valid base64 char
 	// So if string starts with @, then this sender ID must
 	// be a user ID
-	return string(s)[0] == '@'
+	return len(s) > 0 && s[0] == '@'
 }
 
 // Returns true if this SenderID was made using a pseudo ID.
