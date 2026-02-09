@@ -52,6 +52,10 @@ const (
 	ErrorThreePIDInUse               MatrixErrorCode = "M_THREEPID_IN_USE"
 	ErrorThreePIDAuthFailed          MatrixErrorCode = "M_THREEPID_AUTH_FAILED"
 	ErrorTooLarge                    MatrixErrorCode = "M_TOO_LARGE"
+
+	// MSC3895: UNABLE_DUE_TO_PARTIAL_STATE error code for faster joins
+	// https://github.com/matrix-org/matrix-spec-proposals/pull/3895
+	ErrorUnableDueToPartialState MatrixErrorCode = "ORG.MATRIX.MSC3895_UNABLE_DUE_TO_PARTIAL_STATE"
 )
 
 // MatrixError represents the "standard error response" in Matrix.
@@ -290,4 +294,12 @@ func NotTrusted(serverName string) MatrixError {
 		ErrCode: ErrorServerNotTrusted,
 		Err:     fmt.Sprintf("Untrusted server '%s'", serverName),
 	}
+}
+
+// UnableDueToPartialState is an error which is returned when a server cannot
+// process a federation request because the room is in partial state (MSC3895).
+// This happens during faster joins (MSC3706) when a room has not yet completed
+// its background state resynchronization.
+func UnableDueToPartialState(msg string) MatrixError {
+	return MatrixError{ErrorUnableDueToPartialState, msg}
 }
