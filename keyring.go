@@ -589,9 +589,7 @@ func (d *DirectKeyFetcher) fetchKeysForServer(
 
 	keys, err := d.Client.GetServerKeys(ctx, serverName)
 	if err != nil {
-		if err != nil {
-			return nil, err
-		}
+		return nil, err
 	}
 	// Check that the keys are valid for the server.
 	checks, _ := CheckKeys(serverName, time.Unix(0, 0), keys)
