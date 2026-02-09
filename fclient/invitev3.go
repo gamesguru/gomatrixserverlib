@@ -38,11 +38,7 @@ func (i InviteV3Request) MarshalJSON() ([]byte, error) {
 
 // UnmarshalJSON implements json.Unmarshaller.
 func (i *InviteV3Request) UnmarshalJSON(data []byte) error {
-	err := json.Unmarshal(data, &i.fields)
-	if err != nil {
-		return err
-	}
-	return err
+	return json.Unmarshal(data, &i.fields)
 }
 
 // Event returns the invite event.
