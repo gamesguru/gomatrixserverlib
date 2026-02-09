@@ -19,7 +19,6 @@ import (
 	"database/sql/driver"
 	"encoding/json"
 	"fmt"
-	"math"
 	"strconv"
 	"strings"
 
@@ -28,7 +27,7 @@ import (
 	"codefloe.com/pat-s/gomatrixserverlib/spec"
 )
 
-var CreatorPowerLevel = int64(math.Pow(2, 53)) //nolint:mnd
+const CreatorPowerLevel int64 = 1 << 53 // 2^53, max safe JSON integer
 
 // CreateContent is the JSON content of a m.room.create event along with
 // the top level keys needed for auth.
