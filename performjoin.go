@@ -160,7 +160,14 @@ func PerformJoin(
 
 	joinEB := verImpl.NewEventBuilderFromProtoEvent(&joinEvent)
 
-	_ = json.Unmarshal(joinEvent.Content, &input.Content)
+	if err = json.Unmarshal(joinEvent.Content, &input.Content); err != nil {
+		return nil, &FederationError{
+			ServerName: input.ServerName,
+			Transient:  false,
+			Reachable:  true,
+			Err:        fmt.Errorf("failed to unmarshal join event content: %w", err),
+		}
+	}
 	input.Content["membership"] = spec.Join
 	if err = joinEB.SetContent(input.Content); err != nil {
 		return nil, &FederationError{

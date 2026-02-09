@@ -234,7 +234,7 @@ func TestPerformJoin(t *testing.T) {
 			ExpectedRoomVersion: joinEvent.Version(),
 		},
 		"send_join_http_err": {
-			FedClient: &TestFederatedJoinClient{shouldMakeFail: false, shouldSendFail: true, roomVersion: RoomVersionV10},
+			FedClient: &TestFederatedJoinClient{shouldMakeFail: false, shouldSendFail: true, roomVersion: RoomVersionV10, joinEventBuilder: joinProto},
 			Input: PerformJoinInput{
 				UserID:        userID,
 				RoomID:        roomID,
@@ -453,7 +453,7 @@ func TestPerformJoinPseudoID(t *testing.T) {
 			ExpectedRoomVersion: joinEvent.Version(),
 		},
 		"send_join_http_err": {
-			FedClient: &TestFederatedJoinClient{shouldMakeFail: false, shouldSendFail: true, roomVersion: RoomVersionPseudoIDs},
+			FedClient: &TestFederatedJoinClient{shouldMakeFail: false, shouldSendFail: true, roomVersion: RoomVersionPseudoIDs, joinEventBuilder: joinProto},
 			Input: PerformJoinInput{
 				UserID:              userID,
 				RoomID:              roomID,
