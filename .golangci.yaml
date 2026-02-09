@@ -50,6 +50,8 @@ linters:
       period: true
     misspell:
       locale: US
+      ignore-rules:
+        - authorised # Matrix spec uses British spelling for join_authorised_via_users_server
     mnd:
       ignored-numbers:
         - '0o600'

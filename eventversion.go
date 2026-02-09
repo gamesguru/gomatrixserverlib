@@ -599,7 +599,7 @@ func (v RoomVersionImpl) CheckRestrictedJoinsAllowed() error {
 }
 
 // RestrictedJoinServername returns the severName from a potentially existing
-// join_authorized_via_users_server content field. Used to verify event signatures. //nolint:misspell // Matrix spec uses British spelling.
+// join_authorised_via_users_server content field. Used to verify event signatures.
 func (v RoomVersionImpl) RestrictedJoinServername(content []byte) (spec.ServerName, error) {
 	return v.restrictedJoinServernameFunc(content)
 }

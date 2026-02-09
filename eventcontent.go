@@ -140,7 +140,7 @@ type MemberContent struct {
 	ThirdPartyInvite *MemberThirdPartyInvite `json:"third_party_invite,omitempty"`
 	// Restricted join rules require a user with invite permission to be nominated,
 	// so that their membership can be included in the auth events.
-	AuthorisedVia string `json:"join_authorised_via_users_server,omitempty"` //nolint:misspell // Matrix spec uses British spelling
+	AuthorisedVia string `json:"join_authorised_via_users_server,omitempty"`
 
 	// The MXIDMapping used in pseudo ID rooms
 	MXIDMapping *MXIDMapping `json:"mxid_mapping,omitempty"`

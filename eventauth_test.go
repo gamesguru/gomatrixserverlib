@@ -1975,7 +1975,7 @@ func TestJoinRuleKnockRestricted(t *testing.T) {
 			"room_id": "!r1:a",
 			"state_key": "@u4:a",
 			"event_id": "$e2:a",
-			"content": {"membership": "join", "join_authorized_via_users_server": "@u3:a"}
+			"content": {"membership": "join", "join_authorised_via_users_server": "@u3:a"}
 		}],
 		"not_allowed": [{
 			"type": "m.room.member",

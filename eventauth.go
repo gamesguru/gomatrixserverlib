@@ -112,7 +112,7 @@ type membershipContent struct {
 	ThirdPartyInvite *MemberThirdPartyInvite `json:"third_party_invite,omitempty"`
 	// The user that authorized the join, in the case that the restricted join
 	// rule is in effect.
-	AuthorizedVia string `json:"join_authorised_via_users_server,omitempty"` //nolint:misspell // Matrix spec uses British spelling
+	AuthorizedVia string `json:"join_authorised_via_users_server,omitempty"`
 
 	// The MXIDMapping used in pseudo ID rooms
 	MXIDMapping *MXIDMapping `json:"mxid_mapping,omitempty"`

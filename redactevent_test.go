@@ -12,7 +12,7 @@ func TestRedactionAlgorithmV4(t *testing.T) {
 
 	input := []byte(`{"content":{"avatar_url":"mxc://something/somewhere","displayname":"Someone","join_authorised_via_users_server":"@someoneelse:somewhere.org","membership":"join"},"origin_server_ts":1633108629915,"sender":"@someone:somewhere.org","state_key":"@someone:somewhere.org","type":"m.room.member","unsigned":{"age":539338},"room_id":"!someroom:matrix.org"}`)
 	expectedv8 := CanonicalJSONAssumeValid([]byte(`{"sender":"@someone:somewhere.org","room_id":"!someroom:matrix.org","content":{"membership":"join"},"type":"m.room.member","state_key":"@someone:somewhere.org","origin_server_ts":1633108629915}`))
-	expectedv9 := CanonicalJSONAssumeValid([]byte(`{"sender":"@someone:somewhere.org","room_id":"!someroom:matrix.org","content":{"membership":"join","join_authorised_via_users_server":"@someoneelse:somewhere.org"},"type":"m.room.member","state_key":"@someone:somewhere.org","origin_server_ts":1633108629915}`)) //nolint:misspell // Matrix spec uses British spelling
+	expectedv9 := CanonicalJSONAssumeValid([]byte(`{"sender":"@someone:somewhere.org","room_id":"!someroom:matrix.org","content":{"membership":"join","join_authorised_via_users_server":"@someoneelse:somewhere.org"},"type":"m.room.member","state_key":"@someone:somewhere.org","origin_server_ts":1633108629915}`))
 
 	redactedv8, err := MustGetRoomVersion(RoomVersionV8).RedactEventJSON(input)
 	if err != nil {

@@ -90,15 +90,15 @@ var (
 		"m.room.history_visibility": {"history_visibility"},
 	}
 	unredactableContentFieldsV4 = map[string][]string{
-		"m.room.member":             {"membership", "join_authorised_via_users_server"}, //nolint:misspell // Matrix spec uses British spelling
+		"m.room.member":             {"membership", "join_authorised_via_users_server"},
 		"m.room.create":             {"creator"},
 		"m.room.join_rules":         {"join_rule", "allow"},
 		"m.room.power_levels":       {"ban", "events", "events_default", "kick", "redact", "state_default", "users", "users_default"},
 		"m.room.history_visibility": {"history_visibility"},
 	}
 	unredactableContentFieldsV5 = map[string][]string{
-		"m.room.member":             {"membership", "join_authorised_via_users_server"}, //nolint:misspell // Matrix spec uses British spelling
-		"m.room.create":             {},                                                 // NOTE: Keep all fields
+		"m.room.member":             {"membership", "join_authorised_via_users_server"},
+		"m.room.create":             {}, // NOTE: Keep all fields
 		"m.room.join_rules":         {"join_rule", "allow"},
 		"m.room.power_levels":       {"ban", "events", "events_default", "kick", "redact", "state_default", "users", "users_default", "invite"},
 		"m.room.history_visibility": {"history_visibility"},
