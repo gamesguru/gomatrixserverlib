@@ -625,9 +625,10 @@ func (r *stateResolverV2) calculateFullAuthChainAndConflictedSubgraph(
 		// a subgraph. This will add single conflicted nodes but shrug.
 		if shouldCalculateConflictedSubgraph && conflictedEvents.Contains(curr.pdu) {
 			conflictedSubgraphEventIDs := append(slices.Clone(curr.visiting), curr.pdu.EventID())
-			fmt.Printf("found conflicted subgraph %v\n", conflictedSubgraphEventIDs)
 			for _, eventID := range conflictedSubgraphEventIDs {
-				conflictedSubgraph.Insert(r.authEventMap[eventID])
+				if ev, ok := r.authEventMap[eventID]; ok {
+					conflictedSubgraph.Insert(ev)
+				}
 			}
 		}
 
