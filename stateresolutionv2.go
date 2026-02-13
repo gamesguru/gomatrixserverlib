@@ -345,6 +345,11 @@ func ResolveStateConflictsV2New(
 		}
 	}
 
+	// The create event is needed for power level calculations during topological
+	// sorting (PrivilegedCreators check). Seed it from auth events so it's
+	// available regardless of whether unconflicted events are applied first.
+	r.resolvedCreate = getCreateEvent(authEvents)
+
 	// Then process the unconflicted events by ordering them topologically.
 	// v2.1 starts from the empty set, so only do this for v2.
 	if stateResAlgo == StateResV2 {
@@ -976,17 +981,17 @@ func (r *stateResolverV2) getPowerLevelFromAuthEvents(event PDU) int64 {
 	user := event.SenderID()
 	verImpl := MustGetRoomVersion(event.Version())
 	if verImpl.PrivilegedCreators() {
-		// get the create event
-		createEvent := r.resolvedCreate
-		if createEvent == nil {
-			panic("getPowerLevelFromAuthEvents: missing resolved create event, cannot calculate PL of sender!")
-		}
-		for _, creator := range CreatorsFromCreateEvent(createEvent) {
-			if creator == string(user) {
-				return CreatorPowerLevel
+		// Check if the sender is a room creator, which grants them a special
+		// power level. If we don't have a create event, we can't determine
+		// creator privilege, so fall through to the power level event check.
+		if createEvent := r.resolvedCreate; createEvent != nil {
+			for _, creator := range CreatorsFromCreateEvent(createEvent) {
+				if creator == string(user) {
+					return CreatorPowerLevel
+				}
 			}
 		}
-		// otherwise they aren't a creator, so check the PL event.
+		// otherwise they aren't a creator (or we can't tell), so check the PL event.
 	}
 
 	for _, authID := range event.AuthEventIDs() {
