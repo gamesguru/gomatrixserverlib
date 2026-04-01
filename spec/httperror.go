@@ -16,7 +16,7 @@ func (e HTTPError) Error() string {
 	if e.WrappedError != nil {
 		wrappedErrMsg = e.WrappedError.Error()
 	}
-	return fmt.Sprintf("contents=%v msg=%s code=%d wrapped=%s", e.Contents, e.Message, e.Code, wrappedErrMsg)
+	return fmt.Sprintf("contents=%s msg=%s code=%d wrapped=%s", e.Contents, e.Message, e.Code, wrappedErrMsg)
 }
 
 // RespError is the standard JSON error response from Matrix Homeservers.
