@@ -8,6 +8,10 @@ default:
 lint:
     golangci-lint run
 
+vendor:
+    go mod vendor
+    go mod tidy
+
 # Run unit tests
 test:
     go test -v ./...
