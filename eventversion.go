@@ -642,6 +642,9 @@ func (v RoomVersionImpl) NewEventFromTrustedJSONWithEventID(eventID string, even
 }
 
 func (v RoomVersionImpl) NewEventFromUntrustedJSON(eventJSON []byte) (result PDU, err error) {
+	if err = validateEventContent(eventJSON); err != nil {
+		return nil, BadJSONError{err}
+	}
 	return v.newEventFromUntrustedJSONFunc(eventJSON, v)
 }
 

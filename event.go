@@ -16,6 +16,8 @@
 package gomatrixserverlib
 
 import (
+	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"unicode/utf8"
@@ -50,6 +52,27 @@ type eventFields struct {
 	Unsigned       spec.RawJSON   `json:"unsigned,omitempty"`
 	OriginServerTS spec.Timestamp `json:"origin_server_ts"`
 	// Origin         spec.ServerName `json:"origin"`
+}
+
+func validateEventContent(eventJSON []byte) error {
+	var fields struct {
+		Content json.RawMessage `json:"content"`
+	}
+	if err := json.Unmarshal(eventJSON, &fields); err != nil {
+		return err
+	}
+	if len(fields.Content) == 0 {
+		return errors.New("gomatrixserverlib: event content must be a JSON object")
+	}
+
+	var content map[string]json.RawMessage
+	if err := json.Unmarshal(fields.Content, &content); err != nil {
+		return fmt.Errorf("gomatrixserverlib: event content must be a JSON object: %w", err)
+	}
+	if content == nil {
+		return errors.New("gomatrixserverlib: event content must be a JSON object")
+	}
+	return nil
 }
 
 var emptyEventReferenceList = []eventReference{}

@@ -18,8 +18,10 @@ package gomatrixserverlib
 import (
 	"bytes"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
@@ -199,6 +201,52 @@ func TestHeaderedEventToNewEventFromUntrustedJSON(t *testing.T) {
 	_, err = newEventFromUntrustedJSONV1(j, MustGetRoomVersion(RoomVersionV1))
 	if err == nil {
 		t.Fatal("expected an error but got none:")
+	}
+}
+
+func TestNewEventFromUntrustedJSONRejectsNonObjectContent(t *testing.T) {
+	tests := []struct {
+		name    string
+		content string
+	}{
+		{name: "missing", content: ""},
+		{name: "null", content: `"content": null,`},
+		{name: "string", content: `"content": "not an object",`},
+		{name: "array", content: `"content": [],`},
+		{name: "number", content: `"content": 1,`},
+		{name: "boolean", content: `"content": true,`},
+	}
+
+	for roomVersion := range roomVersionMeta {
+		t.Run(string(roomVersion), func(t *testing.T) {
+			verImpl := MustGetRoomVersion(roomVersion)
+			for _, tt := range tests {
+				t.Run(tt.name, func(t *testing.T) {
+					eventJSON := []byte(fmt.Sprintf(`{
+						"auth_events": [],
+						%s
+						"depth": 1,
+						"origin_server_ts": 1,
+						"prev_events": [],
+						"room_id": "!room:example.com",
+						"sender": "@alice:example.com",
+						"type": "m.room.message"
+					}`, tt.content))
+
+					_, err := verImpl.NewEventFromUntrustedJSON(eventJSON)
+					if err == nil {
+						t.Fatal("expected non-object content to be rejected")
+					}
+					var badJSON BadJSONError
+					if !errors.As(err, &badJSON) {
+						t.Fatalf("expected BadJSONError, got %T: %s", err, err)
+					}
+					if !strings.Contains(err.Error(), "event content must be a JSON object") {
+						t.Fatalf("unexpected error: %s", err)
+					}
+				})
+			}
+		})
 	}
 }
 
