@@ -6,11 +6,11 @@ require (
 	github.com/hashicorp/go-set/v3 v3.0.1
 	github.com/miekg/dns v1.1.73
 	github.com/oleiade/lane/v2 v2.0.0
-	github.com/sirupsen/logrus v1.10.1
+	github.com/sirupsen/logrus v1.10.2
 	github.com/stretchr/testify v1.12.1
 	github.com/tidwall/gjson v1.19.0
 	github.com/tidwall/sjson v1.2.5
-	golang.org/x/crypto v0.55.0
+	golang.org/x/crypto v0.56.0
 	gopkg.in/h2non/gock.v1 v1.1.2
 	gopkg.in/macaroon.v2 v2.1.0
 )
@@ -26,6 +26,6 @@ require (
 	golang.org/x/sys v0.47.0 // indirect
 )
 
-go 1.25.0
+go 1.26.0
 
-toolchain go1.27.0
+toolchain go1.27.1
