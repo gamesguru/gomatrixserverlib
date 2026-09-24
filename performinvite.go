@@ -17,6 +17,7 @@ package gomatrixserverlib
 import (
 	"context"
 	"crypto/ed25519"
+	"errors"
 	"fmt"
 	"time"
 
@@ -214,7 +215,7 @@ func PerformInvite(ctx context.Context, input PerformInviteInput, fedClient Fede
 			inviteEvent, err = fedClient.SendInviteV3(ctx, input.EventTemplate, input.Invitee, input.RoomVersion, inviteState)
 			if err != nil {
 				logger.WithError(err).Error("fedClient.SendInviteV3 failed")
-				return nil, spec.Forbidden(err.Error())
+				return nil, remoteInviteError(err)
 			}
 			logger.Debugf("Federated SendInviteV3 success to user %s", input.Invitee.String())
 
@@ -269,13 +270,30 @@ func PerformInvite(ctx context.Context, input PerformInviteInput, fedClient Fede
 			inviteEvent, err = fedClient.SendInvite(ctx, inviteEvent, inviteState)
 			if err != nil {
 				logger.WithError(err).WithField("event_id", eventID).Error("fedClient.SendInvite failed")
-				return nil, spec.Forbidden(err.Error())
+				return nil, remoteInviteError(err)
 			}
 			logger.Debugf("Federated SendInvite success with event ID %s", eventID)
 		}
 	}
 
 	return inviteEvent, nil
+}
+
+// ErrRemoteRejectedInviteState is returned by PerformInvite when the invited
+// server rejected our invite_room_state with M_MISSING_PARAM. MSC4311 asks
+// for such failures to surface to clients as a 5xx error, since there is
+// nothing the client can do differently to make the request succeed.
+var ErrRemoteRejectedInviteState = errors.New("remote server rejected the invite room state")
+
+func remoteInviteError(err error) error {
+	var httpErr spec.HTTPError
+	if errors.As(err, &httpErr) {
+		var respErr spec.RespError
+		if errors.As(httpErr.WrappedError, &respErr) && respErr.ErrCode == string(spec.ErrorMissingParam) {
+			return fmt.Errorf("%w: %s", ErrRemoteRejectedInviteState, respErr.Err)
+		}
+	}
+	return spec.Forbidden(err.Error())
 }
 
 // truncateAuthAndPrevEvents limits the number of events we add into

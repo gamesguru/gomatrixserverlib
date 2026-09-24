@@ -48,6 +48,12 @@ type FederatedInviteClient interface {
 
 // InviteStrippedState is a cut-down set of fields from room state
 // events that allow the invited server to identify the room.
+//
+// Since MSC4311 (Matrix 1.16), invite and knock room state travels over
+// federation as full PDUs. An InviteStrippedState therefore also keeps the
+// full event JSON it was built from or received as, see PDUJSON. MarshalJSON
+// always emits the stripped form so that it is safe to hand to clients; use
+// FederationStrippedState to marshal the PDUs for federation.
 type InviteStrippedState struct {
 	fields struct {
 		Content  spec.RawJSON `json:"content"`
@@ -55,6 +61,7 @@ type InviteStrippedState struct {
 		Type     string       `json:"type"`
 		SenderID string       `json:"sender"`
 	}
+	pduJSON spec.RawJSON
 }
 
 // NewInviteStrippedState creates a stripped state event from a
@@ -64,17 +71,57 @@ func NewInviteStrippedState(event PDU) (ss InviteStrippedState) {
 	ss.fields.StateKey = event.StateKey()
 	ss.fields.Type = event.Type()
 	ss.fields.SenderID = string(event.SenderID())
+	ss.pduJSON = event.JSON()
 	return
 }
 
 // MarshalJSON implements json.Marshaller.
+// It emits only the stripped state fields, never the full PDU.
 func (i InviteStrippedState) MarshalJSON() ([]byte, error) {
 	return json.Marshal(i.fields)
 }
 
 // UnmarshalJSON implements json.Unmarshaller.
+// The raw entry is retained so that it can be validated as a PDU.
 func (i *InviteStrippedState) UnmarshalJSON(data []byte) error {
-	return json.Unmarshal(data, &i.fields)
+	if err := json.Unmarshal(data, &i.fields); err != nil {
+		return err
+	}
+	i.pduJSON = append(spec.RawJSON(nil), data...)
+	return nil
+}
+
+// PDUJSON returns the full event JSON this entry was built from or received
+// as. It is nil for entries which were not built from an event. Received
+// entries are untrusted until they pass ValidateStrippedStatePDUs.
+func (i *InviteStrippedState) PDUJSON() spec.RawJSON {
+	return i.pduJSON
+}
+
+// FederationStrippedState is the federation representation of
+// invite_room_state and knock_room_state. Entries are marshaled as full
+// PDUs when the event JSON is known, as MSC4311 requires, and as stripped
+// state otherwise.
+type FederationStrippedState []InviteStrippedState
+
+// MarshalJSON implements json.Marshaller.
+func (s FederationStrippedState) MarshalJSON() ([]byte, error) {
+	if s == nil {
+		return []byte("null"), nil
+	}
+	entries := make([]json.RawMessage, len(s))
+	for idx := range s {
+		if len(s[idx].pduJSON) > 0 {
+			entries[idx] = json.RawMessage(s[idx].pduJSON)
+			continue
+		}
+		stripped, err := json.Marshal(s[idx])
+		if err != nil {
+			return nil, err
+		}
+		entries[idx] = stripped
+	}
+	return json.Marshal(entries)
 }
 
 // Content returns the content of the stripped state.

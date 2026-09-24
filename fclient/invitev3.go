@@ -51,8 +51,9 @@ func (i *InviteV3Request) RoomVersion() gomatrixserverlib.RoomVersion {
 	return i.fields.RoomVersion
 }
 
-// InviteRoomState returns stripped state events for the room, containing
-// enough information for the client to identify the room.
+// InviteRoomState returns the room state entries sent with the invite,
+// containing enough information for the client to identify the room.
+// Since MSC4311 these are full PDUs, see gomatrixserverlib.ValidateStrippedStatePDUs.
 func (i *InviteV3Request) InviteRoomState() []gomatrixserverlib.InviteStrippedState {
 	return i.fields.InviteRoomState
 }

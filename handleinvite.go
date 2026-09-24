@@ -175,6 +175,15 @@ func handleInviteCommonChecks(ctx context.Context, input HandleInviteInput, even
 	}).Debug("processing incoming federation invite event")
 
 	inviteState := input.StrippedState
+	if _, err = ValidateStrippedStatePDUs(ctx, input.RoomID, input.RoomVersion, inviteState, input.Verifier, input.UserIDQuerier); err != nil {
+		if EnforceStrippedStateValidation(input.RoomVersion) {
+			logger.WithError(err).Warn("rejecting invite with invalid invite_room_state")
+			return nil, spec.MissingParam(fmt.Sprintf("Invalid invite_room_state: %s", err))
+		}
+		// Rejecting is optional in room versions 1 through 11. Warn instead so
+		// that servers which predate MSC4311 can still invite our users.
+		logger.WithError(err).Warn("accepting invite with invite_room_state that fails MSC4311 validation")
+	}
 	if len(inviteState) == 0 {
 		inviteState, err = GenerateStrippedState(ctx, input.RoomID, input.StateQuerier)
 		if err != nil {

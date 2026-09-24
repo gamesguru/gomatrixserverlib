@@ -51,3 +51,44 @@ func TestStrippedState(t *testing.T) {
 		t.Fatalf("got %q, expected %q", string(j), expected)
 	}
 }
+
+func TestInviteV2RequestSendsRoomStateAsPDUs(t *testing.T) {
+	output, err := gomatrixserverlib.NewEventFromHeaderedJSON([]byte(TestInviteV2ExampleEvent), false)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	inviteReq, err := NewInviteV2Request(output, []gomatrixserverlib.InviteStrippedState{
+		gomatrixserverlib.NewInviteStrippedState(output),
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	j, err := json.Marshal(inviteReq)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var wire struct {
+		InviteRoomState []json.RawMessage `json:"invite_room_state"`
+	}
+	if err = json.Unmarshal(j, &wire); err != nil {
+		t.Fatal(err)
+	}
+	if len(wire.InviteRoomState) != 1 || string(wire.InviteRoomState[0]) != string(output.JSON()) {
+		t.Fatalf("invite_room_state should hold the full PDU, got %s", j)
+	}
+
+	var received InviteV2Request
+	if err = json.Unmarshal(j, &received); err != nil {
+		t.Fatal(err)
+	}
+	state := received.InviteRoomState()
+	if len(state) != 1 || string(state[0].PDUJSON()) != string(output.JSON()) {
+		t.Fatalf("received invite_room_state should keep the full PDU, got %+v", state)
+	}
+	if state[0].Type() != "m.room.name" {
+		t.Fatalf("unexpected stripped type %q", state[0].Type())
+	}
+}

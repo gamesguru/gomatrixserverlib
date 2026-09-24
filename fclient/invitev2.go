@@ -30,8 +30,8 @@ func NewInviteV2Request(event gomatrixserverlib.PDU, state []gomatrixserverlib.I
 }
 
 type inviteV2RequestHeaders struct {
-	RoomVersion     gomatrixserverlib.RoomVersion           `json:"room_version"`
-	InviteRoomState []gomatrixserverlib.InviteStrippedState `json:"invite_room_state"`
+	RoomVersion     gomatrixserverlib.RoomVersion             `json:"room_version"`
+	InviteRoomState gomatrixserverlib.FederationStrippedState `json:"invite_room_state"`
 }
 
 // InviteV2Request is used in the body of a /_matrix/federation/v2/invite request.
@@ -75,8 +75,9 @@ func (i *InviteV2Request) RoomVersion() gomatrixserverlib.RoomVersion {
 	return i.fields.RoomVersion
 }
 
-// InviteRoomState returns stripped state events for the room, containing
-// enough information for the client to identify the room.
+// InviteRoomState returns the room state entries sent with the invite,
+// containing enough information for the client to identify the room.
+// Since MSC4311 these are full PDUs, see gomatrixserverlib.ValidateStrippedStatePDUs.
 func (i *InviteV2Request) InviteRoomState() []gomatrixserverlib.InviteStrippedState {
 	return i.fields.InviteRoomState
 }
