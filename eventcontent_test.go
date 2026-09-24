@@ -64,7 +64,7 @@ func TestLevelJSONValueValid(t *testing.T) {
 			t.Fatalf("Wanted entry %d to exist", want)
 		}
 		if int64(want) != got.value {
-			t.Fatalf("Wanted %d got %q", want, got.value)
+			t.Fatalf("Wanted %d got %d", want, got.value)
 		}
 	}
 }

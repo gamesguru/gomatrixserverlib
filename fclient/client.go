@@ -311,7 +311,6 @@ func (f *destinationTripper) getTransport(tlsServerName string, dialer *net.Dial
 					InsecureSkipVerify: f.skipVerify,
 					ClientSessionCache: tls.NewLRUClientSessionCache(0), // 0 = use default
 				},
-				Dial:              dialer.Dial,
 				DialContext:       dialer.DialContext,
 				Proxy:             http.ProxyFromEnvironment,
 				ForceAttemptHTTP2: true, // if we can multiplex requests over HTTP/2, we should
