@@ -226,30 +226,24 @@ func createInviteLogger(ctx context.Context, roomID spec.RoomID, inviter spec.Us
 	})
 }
 
+// setUnsignedFieldForInvite stores the stripped state on an invite. It is
+// always a list, as clients expect, even when empty.
 func setUnsignedFieldForInvite(event PDU, inviteState []InviteStrippedState) error {
-	if len(inviteState) == 0 {
-		if err := event.SetUnsignedField("invite_room_state", struct{}{}); err != nil {
-			return fmt.Errorf("event.SetUnsignedField: %w", err)
-		}
-	} else {
-		if err := event.SetUnsignedField("invite_room_state", inviteState); err != nil {
-			return fmt.Errorf("event.SetUnsignedField: %w", err)
-		}
+	if inviteState == nil {
+		inviteState = []InviteStrippedState{}
 	}
-
+	if err := event.SetUnsignedField("invite_room_state", inviteState); err != nil {
+		return fmt.Errorf("event.SetUnsignedField: %w", err)
+	}
 	return nil
 }
 
 func setUnsignedFieldForProtoInvite(event *ProtoEvent, inviteState []InviteStrippedState) error {
-	if len(inviteState) == 0 {
-		if err := event.SetUnsigned(map[string]any{"invite_room_state": struct{}{}}); err != nil {
-			return fmt.Errorf("event.SetUnsignedField: %w", err)
-		}
-	} else {
-		if err := event.SetUnsigned(map[string]any{"invite_room_state": inviteState}); err != nil {
-			return fmt.Errorf("event.SetUnsignedField: %w", err)
-		}
+	if inviteState == nil {
+		inviteState = []InviteStrippedState{}
 	}
-
+	if err := event.SetUnsigned(map[string]any{"invite_room_state": inviteState}); err != nil {
+		return fmt.Errorf("event.SetUnsignedField: %w", err)
+	}
 	return nil
 }

@@ -14,6 +14,11 @@ import (
 // when no valid m.room.create event is among the entries.
 var ErrStrippedStateMissingCreate = errors.New("m.room.create event not among room state entries")
 
+// ErrStrippedStateNotPDU is wrapped by the entry errors of
+// ValidateStrippedStatePDUs for entries which are not PDUs of the room
+// version, such as the stripped state sent by servers predating MSC4311.
+var ErrStrippedStateNotPDU = errors.New("not a PDU for the room version")
+
 // StrippedStateEntryError describes why a single invite_room_state or
 // knock_room_state entry failed validation.
 type StrippedStateEntryError struct {
@@ -30,18 +35,34 @@ func (e StrippedStateEntryError) Unwrap() error {
 	return e.Err
 }
 
-// EnforceStrippedStateValidation reports whether invites to rooms of the
-// given version must be rejected when their invite_room_state fails
-// ValidateStrippedStatePDUs. MSC4311 makes rejection a SHOULD for room
-// versions with room IDs derived from the create event (v12 and later) and
-// a MAY for older versions, where servers are expected to warn instead
-// while the federation migrates.
-func EnforceStrippedStateValidation(roomVersion RoomVersion) bool {
-	verImpl, err := GetRoomVersion(roomVersion)
-	if err != nil {
+// StrippedStateRejectsInvite reports whether an invite must be rejected
+// for invite_room_state which failed ValidateStrippedStatePDUs with err.
+//
+// MSC4311 makes rejection a MAY for room versions 1 through 11, so those
+// only warn. For later room versions its migration section asks servers to
+// warn rather than fail while servers catch up with sending full PDUs, but
+// to still fail when the state holds PDUs for a different room. So an
+// invite is rejected when some entry is a PDU which fails validation, and
+// accepted when entries merely are not PDUs or the create event is missing.
+func StrippedStateRejectsInvite(roomVersion RoomVersion, err error) bool {
+	if err == nil {
 		return false
 	}
-	return verImpl.DomainlessRoomIDs()
+	verImpl, verErr := GetRoomVersion(roomVersion)
+	if verErr != nil || !verImpl.DomainlessRoomIDs() {
+		return false
+	}
+	problems := []error{err}
+	if joined, ok := err.(interface{ Unwrap() []error }); ok {
+		problems = joined.Unwrap()
+	}
+	for _, problem := range problems {
+		if errors.Is(problem, ErrStrippedStateMissingCreate) || errors.Is(problem, ErrStrippedStateNotPDU) {
+			continue
+		}
+		return true
+	}
+	return false
 }
 
 // ValidateStrippedStatePDUs validates invite_room_state or knock_room_state
@@ -100,11 +121,11 @@ func validateStrippedStatePDU(
 	userIDForSender spec.UserIDForSender,
 ) (PDU, error) {
 	if len(eventJSON) == 0 {
-		return nil, errors.New("not a PDU")
+		return nil, ErrStrippedStateNotPDU
 	}
 	event, err := verImpl.NewEventFromUntrustedJSON(eventJSON)
 	if err != nil {
-		return nil, fmt.Errorf("not a PDU for room version %s: %w", verImpl.Version(), err)
+		return nil, fmt.Errorf("%w %s: %w", ErrStrippedStateNotPDU, verImpl.Version(), err)
 	}
 	if event.StateKey() == nil {
 		return nil, errors.New("not a state event")

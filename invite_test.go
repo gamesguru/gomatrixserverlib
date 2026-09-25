@@ -37,7 +37,7 @@ func TestEmptyUnsignedFieldIsSetForPDU(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	inviteStateJSON, err := json.Marshal(map[string]any{"invite_room_state": struct{}{}})
+	inviteStateJSON, err := json.Marshal(map[string]any{"invite_room_state": []any{}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -77,7 +77,7 @@ func TestEmptyUnsignedFieldIsSetForProtoEvent(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	inviteStateJSON, err := json.Marshal(map[string]any{"invite_room_state": struct{}{}})
+	inviteStateJSON, err := json.Marshal(map[string]any{"invite_room_state": []any{}})
 	if err != nil {
 		t.Fatal(err)
 	}

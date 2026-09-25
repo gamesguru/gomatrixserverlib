@@ -57,6 +57,17 @@ func (f inviteStateFixture) stateEvent(t *testing.T, version RoomVersion, roomID
 	return ev
 }
 
+// strippedOnly returns entries in the pre-MSC4311 stripped form.
+func strippedOnly(t *testing.T, events ...PDU) FederationStrippedState {
+	t.Helper()
+	state := make(FederationStrippedState, len(events))
+	for i, ev := range events {
+		state[i] = NewInviteStrippedState(ev)
+		state[i].pduJSON = nil
+	}
+	return state
+}
+
 // receivedState round-trips entries through JSON the way a federation
 // request would deliver them.
 func receivedState(t *testing.T, state FederationStrippedState) []InviteStrippedState {
@@ -201,12 +212,30 @@ func TestValidateStrippedStatePDUs(t *testing.T) {
 	}
 }
 
-func TestEnforceStrippedStateValidation(t *testing.T) {
-	for _, version := range []RoomVersion{RoomVersionV1, RoomVersionV10, RoomVersionV11, RoomVersionPseudoIDs} {
-		assert.False(t, EnforceStrippedStateValidation(version), version)
+func TestStrippedStateRejectsInvite(t *testing.T) {
+	notPDU := StrippedStateEntryError{Index: 0, Err: ErrStrippedStateNotPDU}
+	otherRoom := StrippedStateEntryError{Index: 1, Err: errors.New("event belongs to room \"!b\", not \"!a\"")}
+	tests := map[string]struct {
+		err  error
+		want bool
+	}{
+		"no error":                       {err: nil, want: false},
+		"missing create":                 {err: errors.Join(ErrStrippedStateMissingCreate), want: false},
+		"stripped state only":            {err: errors.Join(notPDU, ErrStrippedStateMissingCreate), want: false},
+		"PDU for another room":           {err: errors.Join(otherRoom, ErrStrippedStateMissingCreate), want: true},
+		"PDU for another room, unjoined": {err: otherRoom, want: true},
+		"mixed":                          {err: errors.Join(notPDU, otherRoom), want: true},
 	}
-	assert.True(t, EnforceStrippedStateValidation(RoomVersionV12))
-	assert.False(t, EnforceStrippedStateValidation("unknown"))
+	for name, tc := range tests {
+		t.Run(name, func(t *testing.T) {
+			assert.Equal(t, tc.want, StrippedStateRejectsInvite(RoomVersionV12, tc.err))
+			// Room versions 1 through 11 never reject.
+			for _, version := range []RoomVersion{RoomVersionV1, RoomVersionV10, RoomVersionV11, RoomVersionPseudoIDs} {
+				assert.False(t, StrippedStateRejectsInvite(version, tc.err), version)
+			}
+		})
+	}
+	assert.False(t, StrippedStateRejectsInvite("unknown", otherRoom))
 }
 
 func TestHandleInviteValidatesInviteRoomState(t *testing.T) {
@@ -226,6 +255,7 @@ func TestHandleInviteValidatesInviteRoomState(t *testing.T) {
 	v12Room := v12Create.RoomID()
 	v12Name := f.stateEvent(t, RoomVersionV12, v12Room.String(), spec.MRoomName, `{"name":"Test"}`, f.sk)
 	v12OtherCreate := f.stateEvent(t, RoomVersionV12, "", spec.MRoomCreate, `{"room_version":"12","other":true}`, f.sk)
+	v12BadSigName := f.stateEvent(t, RoomVersionV12, v12Room.String(), spec.MRoomName, `{"name":"Forged"}`, f.otherSK)
 	v12Invite, err := createMemberEventBuilder(RoomVersionV12, f.user.String(), v12Room.String(), &stateKey, spec.RawJSON(`{"membership":"invite"}`)).
 		Build(time.Now(), f.user.Domain(), f.keyID, f.sk)
 	require.NoError(t, err)
@@ -254,16 +284,23 @@ func TestHandleInviteValidatesInviteRoomState(t *testing.T) {
 		"v12_valid_state": {
 			input: input(v12Room, RoomVersionV12, v12Invite, FederationStrippedState{NewInviteStrippedState(v12Create), NewInviteStrippedState(v12Name)}),
 		},
-		"v12_no_state": {
-			input:          input(v12Room, RoomVersionV12, v12Invite, nil),
-			wantMissingErr: true,
+		// MSC4311's migration section: warn about state which is missing or
+		// not in PDU form, but fail on PDUs which do not check out.
+		"v12_no_state_is_accepted": {
+			input: input(v12Room, RoomVersionV12, v12Invite, nil),
 		},
-		"v12_missing_create": {
-			input:          input(v12Room, RoomVersionV12, v12Invite, FederationStrippedState{NewInviteStrippedState(v12Name)}),
-			wantMissingErr: true,
+		"v12_missing_create_is_accepted": {
+			input: input(v12Room, RoomVersionV12, v12Invite, FederationStrippedState{NewInviteStrippedState(v12Name)}),
+		},
+		"v12_stripped_state_is_accepted": {
+			input: input(v12Room, RoomVersionV12, v12Invite, strippedOnly(t, v12Create, v12Name)),
 		},
 		"v12_create_for_other_room": {
 			input:          input(v12Room, RoomVersionV12, v12Invite, FederationStrippedState{NewInviteStrippedState(v12OtherCreate)}),
+			wantMissingErr: true,
+		},
+		"v12_bad_signature": {
+			input:          input(v12Room, RoomVersionV12, v12Invite, FederationStrippedState{NewInviteStrippedState(v12Create), NewInviteStrippedState(v12BadSigName)}),
 			wantMissingErr: true,
 		},
 		"v10_valid_state": {
