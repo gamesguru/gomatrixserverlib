@@ -201,6 +201,23 @@ func TestHandleMakeJoin(t *testing.T) {
 		t.Fatalf("Failed building power_levels event: %v", err)
 	}
 
+	// Power levels where nobody on this server may invite.
+	lowPowerLevelsEB := MustGetRoomVersion(RoomVersionV10).NewEventBuilderFromProtoEvent(&ProtoEvent{
+		SenderID:   validUser.String(),
+		RoomID:     validRoom.String(),
+		Type:       spec.MRoomPowerLevels,
+		StateKey:   &stateKey,
+		PrevEvents: []any{createEvent.EventID()},
+		AuthEvents: []any{createEvent.EventID()},
+		Depth:      2,
+		Content:    spec.RawJSON(`{"invite":50,"users":{}}`),
+		Unsigned:   spec.RawJSON(""),
+	})
+	lowPowerLevelsEvent, err := lowPowerLevelsEB.Build(time.Now(), validUser.Domain(), keyID, sk)
+	if err != nil {
+		t.Fatalf("Failed building power_levels event: %v", err)
+	}
+
 	stateKey = validUser.String()
 	joinEB := MustGetRoomVersion(RoomVersionV10).NewEventBuilderFromProtoEvent(&ProtoEvent{
 		SenderID:   validUser.String(),
@@ -500,6 +517,37 @@ func TestHandleMakeJoin(t *testing.T) {
 					joinedUsers:      []PDU{joinedUserEvent},
 					joinRulesEvent:   joinRulesRestrictedEvent,
 					powerLevelsEvent: powerLevelsEvent,
+				},
+				UserIDQuerier: UserIDForSenderTest,
+				BuildEventTemplate: func(*ProtoEvent) (PDU, []PDU, error) {
+					return joinEvent, []PDU{createEvent, joinRulesEvent}, nil
+				},
+			},
+			expectedErr: true,
+			errCode:     spec.ErrorUnableToAuthoriseJoin,
+			errType:     MatrixErr,
+		},
+		// The user may join, but only another server can authorize it.
+		"failure_restricted_join_allowed_but_no_local_member_can_invite": {
+			input: HandleMakeJoinInput{
+				Context:           context.Background(),
+				UserID:            *validUser,
+				RoomID:            *validRoom,
+				RoomVersion:       RoomVersionV10,
+				RemoteVersions:    []RoomVersion{RoomVersionV10},
+				RequestOrigin:     remoteServer,
+				LocalServerName:   localServer,
+				LocalServerInRoom: true,
+				RoomQuerier: &TestRestrictedRoomJoinQuerier{
+					roomExists: true,
+					serverInRoom: map[string]bool{
+						validRoom.String():   true,
+						allowedRoom.String(): true,
+					},
+					joinerInRoom:     true,
+					joinedUsers:      []PDU{joinedUserEvent},
+					joinRulesEvent:   joinRulesRestrictedEvent,
+					powerLevelsEvent: lowPowerLevelsEvent,
 				},
 				UserIDQuerier: UserIDForSenderTest,
 				BuildEventTemplate: func(*ProtoEvent) (PDU, []PDU, error) {

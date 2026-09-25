@@ -245,6 +245,7 @@ func checkRestrictedJoin(
 	}
 
 	resident := true
+	userAllowed := false
 	// Step through the join rules and see if the user matches any of them.
 	for _, rule := range joinRules.Allow {
 		// We only understand "m.room_membership" rules at this point in
@@ -276,6 +277,7 @@ func checkRestrictedJoin(
 		if !allowedRoomInfo.UserJoinedToRoom {
 			continue
 		}
+		userAllowed = true
 
 		// The joining user is in the allowed room, so now we will need to authorize
 		// the join using the user ID of one of our own users in the TARGET room
@@ -310,6 +312,12 @@ func checkRestrictedJoin(
 			// that it can be referred to from within the membership content.
 			return userID, nil
 		}
+	}
+
+	if userAllowed {
+		// The user may join, but none of our users in the room has the power
+		// to invite, so another resident server has to authorize the join.
+		return "", spec.UnableToAuthoriseJoin("No user on this server can authorize the join.")
 	}
 
 	if !resident {
