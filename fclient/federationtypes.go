@@ -72,6 +72,44 @@ type RespPeek struct {
 	LatestEvent gomatrixserverlib.PDU `json:"latest_event"`
 }
 
+// UnmarshalJSON implements json.Unmarshaller. The latest event is an
+// interface whose format depends on the room version, so it can only be
+// parsed once the room version in the same response is known. A response
+// without a room version is treated as room version 1.
+func (r *RespPeek) UnmarshalJSON(data []byte) error {
+	var fields struct {
+		RenewalInterval int64                         `json:"renewal_interval"`
+		StateEvents     gomatrixserverlib.EventJSONs  `json:"state"`
+		AuthEvents      gomatrixserverlib.EventJSONs  `json:"auth_chain"`
+		RoomVersion     gomatrixserverlib.RoomVersion `json:"room_version"`
+		LatestEvent     spec.RawJSON                  `json:"latest_event"`
+	}
+	if err := json.Unmarshal(data, &fields); err != nil {
+		return err
+	}
+	*r = RespPeek{
+		RenewalInterval: fields.RenewalInterval,
+		StateEvents:     fields.StateEvents,
+		AuthEvents:      fields.AuthEvents,
+		RoomVersion:     fields.RoomVersion,
+	}
+	if len(fields.LatestEvent) == 0 || string(fields.LatestEvent) == "null" {
+		return nil
+	}
+	roomVersion := fields.RoomVersion
+	if roomVersion == "" {
+		roomVersion = gomatrixserverlib.RoomVersionV1
+	}
+	verImpl, err := gomatrixserverlib.GetRoomVersion(roomVersion)
+	if err != nil {
+		return fmt.Errorf("gomatrixserverlib: peek response has an unsupported room version: %w", err)
+	}
+	if r.LatestEvent, err = verImpl.NewEventFromUntrustedJSON(fields.LatestEvent); err != nil {
+		return fmt.Errorf("gomatrixserverlib: peek response has an invalid latest_event: %w", err)
+	}
+	return nil
+}
+
 func (r *RespPeek) GetStateEvents() gomatrixserverlib.EventJSONs {
 	return r.StateEvents
 }
