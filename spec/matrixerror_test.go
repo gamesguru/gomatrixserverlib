@@ -74,6 +74,15 @@ func TestInternalServerError(t *testing.T) {
 	assert.NotPanics(t, func() { _ = e.Error() })
 }
 
+func TestInternalServerErrorJSON(t *testing.T) {
+	want := `{"errcode":"M_UNKNOWN","error":"Internal server error"}`
+	for _, e := range []any{InternalServerError{}, &InternalServerError{Err: "connection refused"}} {
+		jsonBytes, err := json.Marshal(e)
+		assert.NoError(t, err)
+		assert.Equal(t, want, string(jsonBytes))
+	}
+}
+
 func TestLimitExceeded(t *testing.T) {
 	e := LimitExceeded("error msg", 500)
 	jsonBytes, err := json.Marshal(&e)

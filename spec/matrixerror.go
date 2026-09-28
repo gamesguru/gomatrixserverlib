@@ -15,6 +15,7 @@
 package spec
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 )
@@ -80,6 +81,12 @@ type InternalServerError struct {
 
 func (e InternalServerError) Error() string {
 	return fmt.Sprintf("Internal server error: %s", e.Err)
+}
+
+// MarshalJSON renders the error as a Matrix error response. Err is left out
+// because it can describe server internals.
+func (e InternalServerError) MarshalJSON() ([]byte, error) {
+	return json.Marshal(MatrixError{ErrCode: ErrorUnknown, Err: "Internal server error"})
 }
 
 // Unknown is an unexpected error.
