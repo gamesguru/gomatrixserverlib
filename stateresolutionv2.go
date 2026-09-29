@@ -1061,25 +1061,23 @@ func kahnsAlgorithmUsingAuthEvents(events []*stateResV2ConflictedPowerLevel) []*
 	// Now we need to work out which events don't have any incoming auth event
 	// dependencies. These will be placed into the graph first. Remove the event
 	// from the event map as this prevents us from processing it a second time.
-	noIncoming := make(stateResV2ConflictedPowerLevelHeap, 0, len(events))
+	noIncoming := newKahnHeap(len(events), sortStateResV2ConflictedPowerLevelHeap)
 	for eventID, count := range inDegree {
 		if count == 0 {
-			noIncoming.Push(eventMap[eventID])
+			noIncoming.push(eventMap[eventID])
 			delete(eventMap, eventID)
 		}
 	}
-	slices.SortStableFunc(noIncoming, sortStateResV2ConflictedPowerLevelHeap)
 
-	for len(noIncoming) > 0 {
-		// Pop the first event ID off the list of events which have no incoming
-		// auth event dependencies.
-		event := noIncoming.Pop()
+	for noIncoming.len() > 0 {
+		// Pop the event that sorts last off the list of events which have no
+		// incoming auth event dependencies.
+		event := noIncoming.pop()
 
 		// Since there are no incoming dependencies to resolve, we can now add this
-		// event into the graph.
-		graph = append(graph, nil)
-		copy(graph[1:], graph)
-		graph[0] = event
+		// event into the graph. The graph is built in reverse and flipped once
+		// at the end, as prepending would copy the whole graph every time.
+		graph = append(graph, event)
 
 		// Now we should look at the outgoing auth dependencies that this event has.
 		// Since this event is now in the graph, the event's outgoing auth
@@ -1094,19 +1092,19 @@ func kahnsAlgorithmUsingAuthEvents(events []*stateResV2ConflictedPowerLevel) []*
 			// process the outgoing dependencies of this auth event.
 			if inDegree[auth] == 0 {
 				if _, ok := eventMap[auth]; ok {
-					noIncoming.Push(eventMap[auth])
+					noIncoming.push(eventMap[auth])
 					delete(eventMap, auth)
 				}
 			}
 		}
-		slices.SortStableFunc(noIncoming, sortStateResV2ConflictedPowerLevelHeap)
 	}
+	slices.Reverse(graph)
 
 	// If we have stray events left over then add them into the result.
 	if len(eventMap) > 0 {
 		remaining := make(stateResV2ConflictedPowerLevelHeap, 0, len(events))
 		for _, event := range eventMap {
-			remaining.Push(event)
+			remaining = append(remaining, event)
 		}
 		slices.SortStableFunc(remaining, sortStateResV2ConflictedPowerLevelHeap)
 		graph = append(remaining, graph...)
@@ -1147,25 +1145,23 @@ func kahnsAlgorithmUsingPrevEvents(events []*stateResV2ConflictedOther) []*state
 	// Now we need to work out which events don't have any incoming prev event
 	// dependencies. These will be placed into the graph first. Remove the event
 	// from the event map as this prevents us from processing it a second time.
-	noIncoming := make(stateResV2ConflictedOtherHeap, 0, len(events))
+	noIncoming := newKahnHeap(len(events), sortStateResV2ConflictedOtherHeap)
 	for eventID, count := range inDegree {
 		if count == 0 {
-			noIncoming.Push(eventMap[eventID])
+			noIncoming.push(eventMap[eventID])
 			delete(eventMap, eventID)
 		}
 	}
-	slices.SortStableFunc(noIncoming, sortStateResV2ConflictedOtherHeap)
 
-	for len(noIncoming) > 0 {
-		// Pop the first event ID off the list of events which have no incoming
-		// prev event dependencies.
-		event := noIncoming.Pop()
+	for noIncoming.len() > 0 {
+		// Pop the event that sorts last off the list of events which have no
+		// incoming prev event dependencies.
+		event := noIncoming.pop()
 
 		// Since there are no incoming dependencies to resolve, we can now add this
-		// event into the graph.
-		graph = append(graph, nil)
-		copy(graph[1:], graph)
-		graph[0] = event
+		// event into the graph. The graph is built in reverse and flipped once
+		// at the end, as prepending would copy the whole graph every time.
+		graph = append(graph, event)
 
 		// Now we should look at the outgoing prev dependencies that this event has.
 		// Since this event is now in the graph, the event's outgoing prev
@@ -1180,13 +1176,13 @@ func kahnsAlgorithmUsingPrevEvents(events []*stateResV2ConflictedOther) []*state
 			// process the outgoing dependencies of this prev event.
 			if inDegree[prev] == 0 {
 				if _, ok := eventMap[prev]; ok {
-					noIncoming.Push(eventMap[prev])
+					noIncoming.push(eventMap[prev])
 					delete(eventMap, prev)
 				}
 			}
 		}
-		slices.SortStableFunc(noIncoming, sortStateResV2ConflictedOtherHeap)
 	}
+	slices.Reverse(graph)
 
 	// If we have stray events left over then add them into the result.
 	if len(eventMap) > 0 {
