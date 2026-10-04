@@ -110,3 +110,68 @@ func TestRedactionAlgorithmV5(t *testing.T) {
 		t.Fatalf("room version 11 redaction produced unexpected result\nexpected: %s\ngot: %s", string(expectedv11Redaction), string(redactedv11Redaction))
 	}
 }
+
+func TestRedactionAlgorithmV5ThirdPartyInviteSigned(t *testing.T) {
+	// MSC3821: from room version 11, redacting an m.room.member event keeps
+	// the signed key of third_party_invite, mirroring Synapse's pruning.
+	const envelope = `"origin_server_ts":1633108629915,"sender":"@someone:somewhere.org","state_key":"@someone:somewhere.org","type":"m.room.member","room_id":"!someroom:matrix.org"`
+	const signed = `{"mxid":"@someone:somewhere.org","token":"abc","signatures":{"id.example.org":{"ed25519:0":"sig"}}}`
+	tests := []struct {
+		name      string
+		content   string
+		wantV10   string
+		wantV11Up string
+	}{
+		{
+			name:      "signed kept, other keys dropped",
+			content:   `{"membership":"join","displayname":"Someone","third_party_invite":{"display_name":"alice","signed":` + signed + `}}`,
+			wantV10:   `{"membership":"join"}`,
+			wantV11Up: `{"membership":"join","third_party_invite":{"signed":` + signed + `}}`,
+		},
+		{
+			name:      "object without signed kept empty",
+			content:   `{"membership":"join","third_party_invite":{"display_name":"alice"}}`,
+			wantV10:   `{"membership":"join"}`,
+			wantV11Up: `{"membership":"join","third_party_invite":{}}`,
+		},
+		{
+			name:      "non-object dropped",
+			content:   `{"membership":"join","third_party_invite":"bogus"}`,
+			wantV10:   `{"membership":"join"}`,
+			wantV11Up: `{"membership":"join"}`,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			input := []byte(`{"content":` + tt.content + `,` + envelope + `,"unsigned":{"age":1}}`)
+			for _, v := range []struct {
+				ver  RoomVersion
+				want string
+			}{
+				{RoomVersionV10, tt.wantV10},
+				{RoomVersionV11, tt.wantV11Up},
+				{RoomVersionV12, tt.wantV11Up},
+				{RoomVersionHydra, tt.wantV11Up},
+				{RoomVersionStateDAGs, tt.wantV11Up},
+			} {
+				want := CanonicalJSONAssumeValid([]byte(`{"content":` + v.want + `,` + envelope + `}`))
+				got, err := MustGetRoomVersion(v.ver).RedactEventJSON(input)
+				if err != nil {
+					t.Fatal(err)
+				}
+				got = CanonicalJSONAssumeValid(got)
+				if !bytes.Equal(got, want) {
+					t.Errorf("room version %s\nexpected: %s\ngot: %s", v.ver, want, got)
+				}
+				// Redaction must be idempotent so a redacted event keeps its hash.
+				again, err := MustGetRoomVersion(v.ver).RedactEventJSON(got)
+				if err != nil {
+					t.Fatal(err)
+				}
+				if again = CanonicalJSONAssumeValid(again); !bytes.Equal(again, want) {
+					t.Errorf("room version %s re-redaction\nexpected: %s\ngot: %s", v.ver, want, again)
+				}
+			}
+		})
+	}
+}

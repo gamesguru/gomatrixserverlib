@@ -110,34 +110,34 @@ var (
 // fields necessary for authenticating the event. Implements https://spec.matrix.org/unstable/rooms/v9/#redactions
 // which protects the membership join authorisation key.
 func redactEventJSONV5(eventJSON []byte) ([]byte, error) {
-	return redactEventJSON(eventJSON, &unredactableEventFieldsV2{}, unredactableContentFieldsV5)
+	return redactEventJSON(eventJSON, &unredactableEventFieldsV2{}, unredactableContentFieldsV5, keepThirdPartyInviteSigned)
 }
 
 // RedactEvent strips the user controlled fields from an event, but leaves the
 // fields necessary for authenticating the event. Implements https://spec.matrix.org/unstable/rooms/v9/#redactions
 // which protects the membership join authorisation key.
 func redactEventJSONV4(eventJSON []byte) ([]byte, error) {
-	return redactEventJSON(eventJSON, &unredactableEventFieldsV1{}, unredactableContentFieldsV4)
+	return redactEventJSON(eventJSON, &unredactableEventFieldsV1{}, unredactableContentFieldsV4, nil)
 }
 
 // RedactEvent strips the user controlled fields from an event, but leaves the
 // fields necessary for authenticating the event. Implements https://spec.matrix.org/unstable/rooms/v8/#redactions
 // which protects join rules 'allow' key.
 func redactEventJSONV3(eventJSON []byte) ([]byte, error) {
-	return redactEventJSON(eventJSON, &unredactableEventFieldsV1{}, unredactableContentFieldsV3)
+	return redactEventJSON(eventJSON, &unredactableEventFieldsV1{}, unredactableContentFieldsV3, nil)
 }
 
 // RedactEvent strips the user controlled fields from an event, but leaves the
 // fields necessary for authenticating the event. Implements https://spec.matrix.org/unstable/rooms/v6/#redactions
 // which has no special meaning for m.room.aliases.
 func redactEventJSONV2(eventJSON []byte) ([]byte, error) {
-	return redactEventJSON(eventJSON, &unredactableEventFieldsV1{}, unredactableContentFieldsV2)
+	return redactEventJSON(eventJSON, &unredactableEventFieldsV1{}, unredactableContentFieldsV2, nil)
 }
 
 // RedactEvent strips the user controlled fields from an event, but leaves the
 // fields necessary for authenticating the event. Implements https://spec.matrix.org/unstable/rooms/v1/#redactions
 func redactEventJSONV1(eventJSON []byte) ([]byte, error) {
-	return redactEventJSON(eventJSON, &unredactableEventFieldsV1{}, unredactableContentFieldsV1)
+	return redactEventJSON(eventJSON, &unredactableEventFieldsV1{}, unredactableContentFieldsV1, nil)
 }
 
 type unredactableEvent interface {
@@ -147,7 +147,31 @@ type unredactableEvent interface {
 	SetContent(map[string]any)
 }
 
-func redactEventJSON[T unredactableEvent](eventJSON []byte, unredactableEvent T, eventTypeToKeepContentFields map[string][]string) ([]byte, error) {
+// keepThirdPartyInviteSigned implements MSC3821 (room version 11+): an
+// m.room.member event keeps the signed key of content.third_party_invite.
+// An object without signed is kept empty and a non-object is dropped, which
+// matches Synapse so that all servers agree on the redacted event's hash.
+func keepThirdPartyInviteSigned(eventType string, oldContent, newContent map[string]any) {
+	if eventType != spec.MRoomMember {
+		return
+	}
+	thirdPartyInvite, ok := oldContent["third_party_invite"].(map[string]any)
+	if !ok {
+		return
+	}
+	kept := map[string]any{}
+	if signed, ok := thirdPartyInvite["signed"]; ok {
+		kept["signed"] = signed
+	}
+	newContent["third_party_invite"] = kept
+}
+
+// redactEventJSON keeps the fields in eventTypeToKeepContentFields and then
+// calls keepNestedContent, if set, to preserve nested keys.
+func redactEventJSON[T unredactableEvent](
+	eventJSON []byte, unredactableEvent T, eventTypeToKeepContentFields map[string][]string,
+	keepNestedContent func(eventType string, oldContent, newContent map[string]any),
+) ([]byte, error) {
 	// Unmarshalling into a struct will discard any extra fields from the event.
 	if err := json.Unmarshal(eventJSON, &unredactableEvent); err != nil {
 		return nil, err
@@ -164,6 +188,10 @@ func redactEventJSON[T unredactableEvent](eventJSON []byte, unredactableEvent T,
 				newContent[contentKey] = val
 			}
 		}
+	}
+
+	if keepNestedContent != nil {
+		keepNestedContent(unredactableEvent.GetType(), unredactableEvent.GetContent(), newContent)
 	}
 
 	// Replace the content with our new filtered content.
@@ -201,5 +229,5 @@ func (u *unredactableEventFieldsVStateDAGs) SetContent(content map[string]any) {
 }
 
 func redactEventJSONVStateDAGs(eventJSON []byte) ([]byte, error) {
-	return redactEventJSON(eventJSON, &unredactableEventFieldsVStateDAGs{}, unredactableContentFieldsV5)
+	return redactEventJSON(eventJSON, &unredactableEventFieldsVStateDAGs{}, unredactableContentFieldsV5, keepThirdPartyInviteSigned)
 }
