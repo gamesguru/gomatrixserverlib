@@ -8,7 +8,7 @@ require (
 	github.com/oleiade/lane/v2 v2.0.0
 	github.com/sirupsen/logrus v1.10.2
 	github.com/stretchr/testify v1.12.1
-	github.com/tidwall/gjson v1.19.0
+	github.com/tidwall/gjson v1.20.0
 	github.com/tidwall/sjson v1.2.5
 	golang.org/x/crypto v0.57.0
 	gopkg.in/h2non/gock.v1 v1.1.2
