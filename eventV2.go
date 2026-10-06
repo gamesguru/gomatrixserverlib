@@ -82,6 +82,14 @@ func (e *eventV2) EventID() string {
 	return ref.EventID
 }
 
+// ToHeaderedJSON overrides the promoted eventV1 method, whose EventID reads
+// only the cached ID. Redact drops that cache, so the redacted event would be
+// headered with an empty _event_id.
+func (e *eventV2) ToHeaderedJSON() ([]byte, error) {
+	e.EventID()
+	return e.eventV1.ToHeaderedJSON()
+}
+
 func (e *eventV2) Redact() {
 	if e.redacted {
 		return
