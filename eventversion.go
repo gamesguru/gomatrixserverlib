@@ -669,6 +669,7 @@ func (v RoomVersionImpl) NewEventBuilderFromProtoEvent(pe *ProtoEvent) *EventBui
 	eb.Type = pe.Type
 	eb.Unsigned = pe.Unsigned
 	eb.PrevStateEvents = pe.PrevStateEvents
+	eb.UnstableSticky = pe.UnstableSticky
 	return eb
 }
 

@@ -13,7 +13,8 @@ import (
 	"codefloe.com/pat-s/gomatrixserverlib/spec"
 )
 
-type stickyEventData struct {
+// StickyEventData is the value of the top-level MSC4354 sticky key of an event.
+type StickyEventData struct {
 	DurationMillis int64 `json:"duration_ms"`
 }
 
@@ -28,8 +29,8 @@ type eventV1 struct {
 	PrevEvents []eventReference `json:"prev_events"`
 	AuthEvents []eventReference `json:"auth_events"`
 
-	UnstableSticky stickyEventData `json:"msc4354_sticky,omitempty"`
-	StableSticky   stickyEventData `json:"sticky,omitempty"`
+	UnstableSticky StickyEventData `json:"msc4354_sticky,omitempty"`
+	StableSticky   StickyEventData `json:"sticky,omitempty"`
 }
 
 // MarshalJSON implements json.Marshaller.

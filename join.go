@@ -57,6 +57,8 @@ type ProtoEvent struct {
 	Content spec.RawJSON `json:"content"`
 	// The JSON object for the "unsigned" key
 	Unsigned spec.RawJSON `json:"unsigned,omitempty"`
+	// The unstable MSC4354 sticky key. Nil for non-sticky events.
+	UnstableSticky *StickyEventData `json:"msc4354_sticky,omitempty"`
 
 	Version IRoomVersion `json:"-"` // exclude this field
 }
