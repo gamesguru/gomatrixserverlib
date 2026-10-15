@@ -122,7 +122,20 @@ func (e *eventV1) RoomID() spec.RoomID {
 	return *roomID
 }
 
+// Redacts returns the ID of the event that an m.room.redaction event redacts.
+// Room versions with MSC2174 (v11 and later) carry it in content.redacts and
+// ignore the top-level key, as Synapse does.
 func (e *eventV1) Redacts() string {
+	if verImpl, err := GetRoomVersion(e.roomVersion); err == nil && verImpl.RedactsInContent() {
+		if e.eventFields.Type != spec.MRoomRedaction {
+			return ""
+		}
+		redacts := gjson.GetBytes(e.eventFields.Content, "redacts")
+		if redacts.Type != gjson.String {
+			return ""
+		}
+		return redacts.Str
+	}
 	return e.eventFields.Redacts
 }
 

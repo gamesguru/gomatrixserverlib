@@ -40,6 +40,10 @@ type IRoomVersion interface {
 	DomainlessRoomIDs() bool
 	PrivilegedCreators() bool
 	StateDAGs() bool
+	// RedactsInContent reports whether m.room.redaction events carry the
+	// redacted event ID in content.redacts rather than the top-level redacts
+	// key (MSC2174, room version 11 and later).
+	RedactsInContent() bool
 }
 
 type KnownRoomVersionFunc func(RoomVersion) bool
@@ -302,6 +306,7 @@ var roomVersionMeta = map[RoomVersion]IRoomVersion{
 		eventFormat:                            EventFormatV2,
 		eventIDFormat:                          EventIDFormatV3,
 		redactionAlgorithm:                     redactEventJSONV5,
+		redactsInContent:                       true,
 		signatureValidityCheckFunc:             StrictValiditySignatureCheck,
 		canonicalJSONCheck:                     verifyEnforcedCanonicalJSON,
 		checkPowerLevelEvent:                   checkPowerLevelEventV2,
@@ -322,6 +327,7 @@ var roomVersionMeta = map[RoomVersion]IRoomVersion{
 		eventFormat:                    EventFormatV2,
 		eventIDFormat:                  EventIDFormatV3,
 		redactionAlgorithm:             redactEventJSONV5,
+		redactsInContent:               true,
 		signatureValidityCheckFunc:     StrictValiditySignatureCheck,
 		canonicalJSONCheck:             verifyEnforcedCanonicalJSON,
 		checkPowerLevelEvent:           checkPowerLevelEventV3,
@@ -404,6 +410,7 @@ var roomVersionMeta = map[RoomVersion]IRoomVersion{
 		eventFormat:                    EventFormatV2,
 		eventIDFormat:                  EventIDFormatV3,
 		redactionAlgorithm:             redactEventJSONV5,
+		redactsInContent:               true,
 		signatureValidityCheckFunc:     StrictValiditySignatureCheck,
 		canonicalJSONCheck:             verifyEnforcedCanonicalJSON,
 		checkPowerLevelEvent:           checkPowerLevelEventV3,
@@ -428,6 +435,7 @@ var roomVersionMeta = map[RoomVersion]IRoomVersion{
 		eventFormat:                    EventFormatV2,
 		eventIDFormat:                  EventIDFormatV3,
 		redactionAlgorithm:             redactEventJSONVStateDAGs,
+		redactsInContent:               true,
 		signatureValidityCheckFunc:     StrictValiditySignatureCheck,
 		canonicalJSONCheck:             verifyEnforcedCanonicalJSON,
 		checkPowerLevelEvent:           checkPowerLevelEventV3,
@@ -531,7 +539,9 @@ type RoomVersionImpl struct {
 	// creators have infinite PL
 	privilegedCreators bool
 	// Events form two graphs, a state DAG and an event DAG.
-	stateDAGs                      bool
+	stateDAGs bool
+	// m.room.redaction events carry the redacted event ID in content.redacts (MSC2174).
+	redactsInContent               bool
 	checkRestrictedJoin            func(ctx context.Context, localServerName spec.ServerName, roomQuerier RestrictedRoomJoinQuerier, roomID spec.RoomID, senderID spec.SenderID, privilegedCreators bool) (string, error)
 	restrictedJoinServernameFunc   func(content []byte) (spec.ServerName, error)
 	checkRestrictedJoinAllowedFunc func() error
@@ -557,6 +567,10 @@ func (v RoomVersionImpl) DomainlessRoomIDs() bool {
 
 func (v RoomVersionImpl) StateDAGs() bool {
 	return v.stateDAGs
+}
+
+func (v RoomVersionImpl) RedactsInContent() bool {
+	return v.redactsInContent
 }
 
 func (v RoomVersionImpl) PrivilegedCreators() bool {
