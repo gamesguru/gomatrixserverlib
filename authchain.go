@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"codefloe.com/pat-s/gomatrixserverlib/spec"
+	"github.com/gamesguru/gomatrixserverlib/spec"
 )
 
 // EventProvider returns the requested list of events.

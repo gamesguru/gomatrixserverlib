@@ -12,8 +12,8 @@ import (
 
 	"golang.org/x/crypto/ed25519"
 
-	"codefloe.com/pat-s/gomatrixserverlib"
-	"codefloe.com/pat-s/gomatrixserverlib/spec"
+	"github.com/gamesguru/gomatrixserverlib"
+	"github.com/gamesguru/gomatrixserverlib/spec"
 )
 
 // an interface for gmsl.FederationClient - contains functions called by federationapi only.

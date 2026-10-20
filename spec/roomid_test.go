@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"testing"
 
-	"codefloe.com/pat-s/gomatrixserverlib/spec"
+	"github.com/gamesguru/gomatrixserverlib/spec"
 )
 
 func TestValidRoomIDs(t *testing.T) {

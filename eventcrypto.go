@@ -27,7 +27,7 @@ import (
 	"github.com/tidwall/sjson"
 	"golang.org/x/crypto/ed25519"
 
-	"codefloe.com/pat-s/gomatrixserverlib/spec"
+	"github.com/gamesguru/gomatrixserverlib/spec"
 )
 
 func VerifyAllEventSignatures(ctx context.Context, events []PDU, verifier JSONVerifier, userIDForSender spec.UserIDForSender) []error {

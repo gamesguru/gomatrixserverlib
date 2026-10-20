@@ -12,7 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/crypto/ed25519"
 
-	"codefloe.com/pat-s/gomatrixserverlib/spec"
+	"github.com/gamesguru/gomatrixserverlib/spec"
 )
 
 func SenderIDForUserTest(roomID spec.RoomID, userID spec.UserID) (*spec.SenderID, error) {

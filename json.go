@@ -25,7 +25,7 @@ import (
 
 	"github.com/tidwall/gjson"
 
-	"codefloe.com/pat-s/gomatrixserverlib/spec"
+	"github.com/gamesguru/gomatrixserverlib/spec"
 )
 
 type EventJSONs []spec.RawJSON

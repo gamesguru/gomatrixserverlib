@@ -22,7 +22,7 @@ import (
 	"net"
 	"strconv"
 
-	"codefloe.com/pat-s/gomatrixserverlib/spec"
+	"github.com/gamesguru/gomatrixserverlib/spec"
 )
 
 // ResolutionResult is a result of looking up a Matrix homeserver according to

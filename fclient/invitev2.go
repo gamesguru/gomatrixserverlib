@@ -6,7 +6,7 @@ import (
 
 	"github.com/tidwall/gjson"
 
-	"codefloe.com/pat-s/gomatrixserverlib"
+	"github.com/gamesguru/gomatrixserverlib"
 )
 
 // InviteV2Request and InviteV2StrippedState are defined in

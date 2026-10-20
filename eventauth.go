@@ -23,8 +23,8 @@ import (
 
 	"golang.org/x/crypto/ed25519"
 
-	"codefloe.com/pat-s/gomatrixserverlib/internal"
-	"codefloe.com/pat-s/gomatrixserverlib/spec"
+	"github.com/gamesguru/gomatrixserverlib/internal"
+	"github.com/gamesguru/gomatrixserverlib/spec"
 )
 
 // StateNeeded lists the event types and state_keys needed to authenticate an event.

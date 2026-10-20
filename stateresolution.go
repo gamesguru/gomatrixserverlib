@@ -21,7 +21,7 @@ import (
 	"fmt"
 	"sort"
 
-	"codefloe.com/pat-s/gomatrixserverlib/spec"
+	"github.com/gamesguru/gomatrixserverlib/spec"
 )
 
 // ResolveStateConflicts takes a list of state events with conflicting state keys

@@ -17,7 +17,7 @@ package gomatrixserverlib
 import (
 	"strings"
 
-	"codefloe.com/pat-s/gomatrixserverlib/spec"
+	"github.com/gamesguru/gomatrixserverlib/spec"
 )
 
 // A stateResV2ConflictedPowerLevel is used to sort the events by effective

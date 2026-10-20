@@ -13,9 +13,9 @@ import (
 
 	"golang.org/x/crypto/ed25519"
 
-	"codefloe.com/pat-s/gomatrixserverlib"
-	"codefloe.com/pat-s/gomatrixserverlib/internal"
-	"codefloe.com/pat-s/gomatrixserverlib/spec"
+	"github.com/gamesguru/gomatrixserverlib"
+	"github.com/gamesguru/gomatrixserverlib/internal"
+	"github.com/gamesguru/gomatrixserverlib/spec"
 )
 
 // A FederationRequest is a request to send to a remote server or a request

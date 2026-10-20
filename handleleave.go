@@ -17,7 +17,7 @@ package gomatrixserverlib
 import (
 	"fmt"
 
-	"codefloe.com/pat-s/gomatrixserverlib/spec"
+	"github.com/gamesguru/gomatrixserverlib/spec"
 )
 
 type HandleMakeLeaveResponse struct {

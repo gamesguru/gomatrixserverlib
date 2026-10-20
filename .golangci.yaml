@@ -89,7 +89,7 @@ formatters:
       sections:
         - standard
         - default
-        - prefix(codefloe.com/pat-s/gomatrixserverlib)
+        - prefix(github.com/gamesguru/gomatrixserverlib)
       custom-order: true
     gofmt:
       simplify: true

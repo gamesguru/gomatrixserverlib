@@ -7,7 +7,7 @@ import (
 
 	"github.com/tidwall/gjson"
 
-	"codefloe.com/pat-s/gomatrixserverlib/spec"
+	"github.com/gamesguru/gomatrixserverlib/spec"
 )
 
 // ErrStrippedStateMissingCreate is returned by ValidateStrippedStatePDUs

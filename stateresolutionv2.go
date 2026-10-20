@@ -22,7 +22,7 @@ import (
 	sets "github.com/hashicorp/go-set/v3"
 	"github.com/oleiade/lane/v2"
 
-	"codefloe.com/pat-s/gomatrixserverlib/spec"
+	"github.com/gamesguru/gomatrixserverlib/spec"
 )
 
 // TopologicalOrder represents how to sort a list of events, used primarily in ReverseTopologicalOrdering.

@@ -8,8 +8,8 @@ import (
 	"github.com/tidwall/sjson"
 	"golang.org/x/crypto/ed25519"
 
-	"codefloe.com/pat-s/gomatrixserverlib/internal"
-	"codefloe.com/pat-s/gomatrixserverlib/spec"
+	"github.com/gamesguru/gomatrixserverlib/internal"
+	"github.com/gamesguru/gomatrixserverlib/spec"
 )
 
 // An EventBuilder is used to build a new event.

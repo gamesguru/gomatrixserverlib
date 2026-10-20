@@ -33,9 +33,9 @@ import (
 
 	"github.com/sirupsen/logrus"
 
-	"codefloe.com/pat-s/gomatrixserverlib"
-	"codefloe.com/pat-s/gomatrixserverlib/internal"
-	"codefloe.com/pat-s/gomatrixserverlib/spec"
+	"github.com/gamesguru/gomatrixserverlib"
+	"github.com/gamesguru/gomatrixserverlib/internal"
+	"github.com/gamesguru/gomatrixserverlib/spec"
 )
 
 // Default HTTPS request timeout.

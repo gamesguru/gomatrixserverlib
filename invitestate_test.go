@@ -13,7 +13,7 @@ import (
 	"github.com/tidwall/gjson"
 	"golang.org/x/crypto/ed25519"
 
-	"codefloe.com/pat-s/gomatrixserverlib/spec"
+	"github.com/gamesguru/gomatrixserverlib/spec"
 )
 
 type inviteStateFixture struct {

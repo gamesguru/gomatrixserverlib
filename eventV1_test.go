@@ -14,7 +14,7 @@ import (
 	"github.com/tidwall/sjson"
 	"golang.org/x/crypto/ed25519"
 
-	"codefloe.com/pat-s/gomatrixserverlib/spec"
+	"github.com/gamesguru/gomatrixserverlib/spec"
 )
 
 func makeStickyEvent(t *testing.T, durationMS int64, originTS int64, stateKey *string) PDU {

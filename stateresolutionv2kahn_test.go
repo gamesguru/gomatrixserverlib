@@ -6,7 +6,7 @@ import (
 	"slices"
 	"testing"
 
-	"codefloe.com/pat-s/gomatrixserverlib/spec"
+	"github.com/gamesguru/gomatrixserverlib/spec"
 )
 
 // referenceKahnsUsingPrevEvents is the original implementation of

@@ -22,7 +22,7 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"codefloe.com/pat-s/gomatrixserverlib/spec"
+	"github.com/gamesguru/gomatrixserverlib/spec"
 )
 
 // Event validation errors.

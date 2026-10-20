@@ -6,8 +6,8 @@ import (
 
 	"github.com/sirupsen/logrus"
 
-	"codefloe.com/pat-s/gomatrixserverlib/internal"
-	"codefloe.com/pat-s/gomatrixserverlib/spec"
+	"github.com/gamesguru/gomatrixserverlib/internal"
+	"github.com/gamesguru/gomatrixserverlib/spec"
 )
 
 // StateProvider is capable of returning the room state at any point in time.

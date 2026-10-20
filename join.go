@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 
-	"codefloe.com/pat-s/gomatrixserverlib/spec"
+	"github.com/gamesguru/gomatrixserverlib/spec"
 )
 
 type FederatedJoinClient interface {

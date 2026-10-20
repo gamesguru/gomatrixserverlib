@@ -10,7 +10,7 @@ import (
 	"github.com/miekg/dns"
 	"gopkg.in/h2non/gock.v1"
 
-	"codefloe.com/pat-s/gomatrixserverlib/spec"
+	"github.com/gamesguru/gomatrixserverlib/spec"
 )
 
 // assertCritical checks whether the second parameter it gets has the same type

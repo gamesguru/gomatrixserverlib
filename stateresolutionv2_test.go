@@ -21,7 +21,7 @@ import (
 
 	sets "github.com/hashicorp/go-set/v3"
 
-	"codefloe.com/pat-s/gomatrixserverlib/spec"
+	"github.com/gamesguru/gomatrixserverlib/spec"
 )
 
 var (

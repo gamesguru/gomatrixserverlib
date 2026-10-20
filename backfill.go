@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 
-	"codefloe.com/pat-s/gomatrixserverlib/spec"
+	"github.com/gamesguru/gomatrixserverlib/spec"
 )
 
 // BackfillClient contains the necessary functions from the federation client to perform a backfill request

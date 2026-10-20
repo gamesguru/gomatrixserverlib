@@ -3,7 +3,7 @@ package gomatrixserverlib
 import (
 	"encoding/json"
 
-	"codefloe.com/pat-s/gomatrixserverlib/spec"
+	"github.com/gamesguru/gomatrixserverlib/spec"
 )
 
 // For satisfying "Upon receipt of a redaction event, the server must strip off any keys not in the following list:".

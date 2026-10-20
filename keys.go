@@ -20,7 +20,7 @@ import (
 	"strings"
 	"time"
 
-	"codefloe.com/pat-s/gomatrixserverlib/spec"
+	"github.com/gamesguru/gomatrixserverlib/spec"
 )
 
 // ServerKeys are the ed25519 signing keys published by a matrix server.

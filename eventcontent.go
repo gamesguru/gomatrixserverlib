@@ -24,7 +24,7 @@ import (
 
 	"golang.org/x/crypto/ed25519"
 
-	"codefloe.com/pat-s/gomatrixserverlib/spec"
+	"github.com/gamesguru/gomatrixserverlib/spec"
 )
 
 const CreatorPowerLevel int64 = 1 << 53 // 2^53, max safe JSON integer

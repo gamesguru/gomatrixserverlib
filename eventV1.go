@@ -10,7 +10,7 @@ import (
 	"github.com/tidwall/sjson"
 	"golang.org/x/crypto/ed25519"
 
-	"codefloe.com/pat-s/gomatrixserverlib/spec"
+	"github.com/gamesguru/gomatrixserverlib/spec"
 )
 
 // StickyEventData is the value of the top-level MSC4354 sticky key of an event.

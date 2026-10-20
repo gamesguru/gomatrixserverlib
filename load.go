@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"strings"
 
-	"codefloe.com/pat-s/gomatrixserverlib/spec"
+	"github.com/gamesguru/gomatrixserverlib/spec"
 )
 
 // EventLoadResult is the result of loading and verifying an event in the EventsLoader.

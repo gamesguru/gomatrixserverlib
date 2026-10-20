@@ -22,7 +22,7 @@ import (
 	"github.com/tidwall/sjson"
 	"golang.org/x/crypto/ed25519"
 
-	"codefloe.com/pat-s/gomatrixserverlib/spec"
+	"github.com/gamesguru/gomatrixserverlib/spec"
 )
 
 // A KeyID is the ID of a ed25519 key used to sign JSON.

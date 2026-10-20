@@ -1,6 +1,6 @@
 # gomatrixserverlib
 
-[![GoDoc](https://godoc.org/codefloe.com/pat-s/gomatrixserverlib?status.svg)](https://godoc.org/codefloe.com/pat-s/gomatrixserverlib)
+[![GoDoc](https://godoc.org/github.com/gamesguru/gomatrixserverlib?status.svg)](https://godoc.org/github.com/gamesguru/gomatrixserverlib)
 
 A fork of [matrix-org/gomatrixserverlib](https://github.com/matrix-org/gomatrixserverlib) — a Go library for [Matrix](https://matrix.org/) protocol server implementations.
 Requires Go 1.25+.

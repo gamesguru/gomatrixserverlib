@@ -1,4 +1,4 @@
-module codefloe.com/pat-s/gomatrixserverlib
+module github.com/gamesguru/gomatrixserverlib
 
 require (
 	github.com/goccy/go-yaml v1.19.2

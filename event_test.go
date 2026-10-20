@@ -27,7 +27,7 @@ import (
 
 	"golang.org/x/crypto/ed25519"
 
-	"codefloe.com/pat-s/gomatrixserverlib/spec"
+	"github.com/gamesguru/gomatrixserverlib/spec"
 )
 
 var privateKey1 = mustLoadPrivateKey(privateKeySeed1)

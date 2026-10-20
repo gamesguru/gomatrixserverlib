@@ -8,8 +8,8 @@ import (
 
 	"github.com/tidwall/gjson"
 
-	"codefloe.com/pat-s/gomatrixserverlib"
-	"codefloe.com/pat-s/gomatrixserverlib/spec"
+	"github.com/gamesguru/gomatrixserverlib"
+	"github.com/gamesguru/gomatrixserverlib/spec"
 )
 
 // A RespSend is the content of a response to PUT /_matrix/federation/v1/send/{txnID}/.
