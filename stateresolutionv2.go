@@ -799,7 +799,7 @@ func (r *stateResolverV2) authAndApplyEvents(events ...PDU) {
 			if authEv.Type() != eventType || !authEv.StateKeyEquals(stateKey) {
 				continue
 			}
-			_ = r.authProvider.AddEvent(event)
+			_ = r.authProvider.AddEvent(authEv)
 		}
 	}
 
