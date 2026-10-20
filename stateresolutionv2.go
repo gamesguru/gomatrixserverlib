@@ -799,7 +799,11 @@ func (r *stateResolverV2) authAndApplyEvents(events ...PDU) {
 			if authEv.Type() != eventType || !authEv.StateKeyEquals(stateKey) {
 				continue
 			}
-			_ = r.authProvider.AddEvent(event)
+			// Never authorise against another room's state.
+			if authEv.RoomID().String() != event.RoomID().String() {
+				continue
+			}
+			_ = r.authProvider.AddEvent(authEv)
 		}
 	}
 
