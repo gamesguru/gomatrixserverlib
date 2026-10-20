@@ -20,14 +20,15 @@ import (
 	"slices"
 
 	sets "github.com/hashicorp/go-set/v3"
-	"github.com/matrix-org/gomatrixserverlib/spec"
 	"github.com/oleiade/lane/v2"
+
+	"codefloe.com/pat-s/gomatrixserverlib/spec"
 )
 
-// TopologicalOrder represents how to sort a list of events, used primarily in ReverseTopologicalOrdering
+// TopologicalOrder represents how to sort a list of events, used primarily in ReverseTopologicalOrdering.
 type TopologicalOrder int
 
-// Sort events by prev_events or auth_events
+// Sort events by prev_events or auth_events.
 const (
 	TopologicalOrderByPrevEvents TopologicalOrder = iota + 1
 	TopologicalOrderByAuthEvents
@@ -58,7 +59,7 @@ type IsRejected func(eventID string) bool
 // keys and works out which event should be used for each state event. This
 // function returns the resolved state, including unconflicted state events.
 //
-// DEPRECATED: This function does not accurately determine which events are conflicted.
+// Deprecated: This function does not accurately determine which events are conflicted.
 // Use ResolveStateConflictsV2New instead.
 func ResolveStateConflictsV2(
 	conflicted, unconflicted,
@@ -127,7 +128,10 @@ func ResolveStateConflictsV2(
 
 	// Get the full conflicted set, that is the conflicted events and the
 	// auth difference (events that don't appear in all auth chains).
-	fullConflictedSet := append(conflicted, r.calculateAuthDifference()...)
+	authDifference := r.calculateAuthDifference()
+	allConflicted := make([]PDU, 0, len(conflicted)+len(authDifference))
+	allConflicted = append(allConflicted, conflicted...)
+	allConflicted = append(allConflicted, authDifference...)
 
 	// The full power set function returns the event and all of its auth
 	// events that also happen to appear in the conflicted set. This will
@@ -153,7 +157,7 @@ func ResolveStateConflictsV2(
 	// events which are unconflicted (from the auth difference, for example),
 	// pull in the control events and any events directly related to them.
 	conflictedPulledIn := make(map[string]struct{}, len(conflicted)+len(authEvents))
-	for _, p := range fullConflictedSet {
+	for _, p := range allConflicted {
 		if _, unconflicted := isUnconflicted[p.EventID()]; unconflicted {
 			continue
 		}
@@ -169,7 +173,7 @@ func ResolveStateConflictsV2(
 	// Then work through the set again, this time looking for any events
 	// that were left over from the last loop — that is, events that are
 	// either not control events or weren't pulled in to the control set.
-	for _, p := range fullConflictedSet {
+	for _, p := range allConflicted {
 		eventID := p.EventID()
 		if _, unconflicted := isUnconflicted[eventID]; unconflicted || isControlEvent(p) {
 			continue
@@ -241,7 +245,7 @@ func ResolveStateConflictsV2New(
 	userIDForSender spec.UserIDForSender,
 	isRejectedFn IsRejected,
 ) []PDU {
-	if len(stateSets) < 2 {
+	if len(stateSets) < 2 { //nolint:mnd
 		panic("must provide at least 2 stateSets to resolve conflicts")
 	}
 	conflicted, unconflicted := splitConflictedUnconflicted(stateResAlgo, stateSets)
@@ -287,7 +291,10 @@ func ResolveStateConflictsV2New(
 
 	// Get the full conflicted set, that is the conflicted events and the
 	// auth difference (events that don't appear in all auth chains).
-	fullConflictedSet := append(conflicted, r.calculateAuthDifferenceNew(stateResAlgo, newPDUSet(conflicted), stateSets)...)
+	authDifferenceNew := r.calculateAuthDifferenceNew(stateResAlgo, newPDUSet(conflicted), stateSets)
+	allConflictedNew := make([]PDU, 0, len(conflicted)+len(authDifferenceNew))
+	allConflictedNew = append(allConflictedNew, conflicted...)
+	allConflictedNew = append(allConflictedNew, authDifferenceNew...)
 
 	// The full power set function returns the event and all of its auth
 	// events that also happen to appear in the conflicted set. This will
@@ -313,7 +320,7 @@ func ResolveStateConflictsV2New(
 	// events which are unconflicted (from the auth difference, for example),
 	// pull in the control events and any events directly related to them.
 	conflictedPulledIn := make(map[string]struct{}, len(conflicted)+len(authEvents))
-	for _, p := range fullConflictedSet {
+	for _, p := range allConflictedNew {
 		if unconflictedSet.Contains(p) {
 			continue
 		}
@@ -329,7 +336,7 @@ func ResolveStateConflictsV2New(
 	// Then work through the set again, this time looking for any events
 	// that were left over from the last loop — that is, events that are
 	// either not control events or weren't pulled in to the control set.
-	for _, p := range fullConflictedSet {
+	for _, p := range allConflictedNew {
 		if unconflictedSet.Contains(p) || isControlEvent(p) {
 			continue
 		}
@@ -337,6 +344,11 @@ func ResolveStateConflictsV2New(
 			conflictedOthers = append(conflictedOthers, p)
 		}
 	}
+
+	// The create event is needed for power level calculations during topological
+	// sorting (PrivilegedCreators check). Seed it from auth events so it's
+	// available regardless of whether unconflicted events are applied first.
+	r.resolvedCreate = getCreateEvent(authEvents)
 
 	// Then process the unconflicted events by ordering them topologically.
 	// v2.1 starts from the empty set, so only do this for v2.
@@ -618,9 +630,10 @@ func (r *stateResolverV2) calculateFullAuthChainAndConflictedSubgraph(
 		// a subgraph. This will add single conflicted nodes but shrug.
 		if shouldCalculateConflictedSubgraph && conflictedEvents.Contains(curr.pdu) {
 			conflictedSubgraphEventIDs := append(slices.Clone(curr.visiting), curr.pdu.EventID())
-			fmt.Printf("found conflicted subgraph %v\n", conflictedSubgraphEventIDs)
 			for _, eventID := range conflictedSubgraphEventIDs {
-				conflictedSubgraph.Insert(r.authEventMap[eventID])
+				if ev, ok := r.authEventMap[eventID]; ok {
+					conflictedSubgraph.Insert(ev)
+				}
 			}
 		}
 
@@ -628,7 +641,7 @@ func (r *stateResolverV2) calculateFullAuthChainAndConflictedSubgraph(
 			authEvent, ok := r.authEventMap[authEventID]
 			if !ok {
 				// FIXME: we should return an error but prior code silently continued,
-				// so match the existing behaviour.
+				// so match the existing behavior.
 				continue
 			}
 			// don't walk paths we've already walked
@@ -968,17 +981,17 @@ func (r *stateResolverV2) getPowerLevelFromAuthEvents(event PDU) int64 {
 	user := event.SenderID()
 	verImpl := MustGetRoomVersion(event.Version())
 	if verImpl.PrivilegedCreators() {
-		// get the create event
-		createEvent := r.resolvedCreate
-		if createEvent == nil {
-			panic("getPowerLevelFromAuthEvents: missing resolved create event, cannot calculate PL of sender!")
-		}
-		for _, creator := range CreatorsFromCreateEvent(createEvent) {
-			if creator == string(user) {
-				return CreatorPowerLevel
+		// Check if the sender is a room creator, which grants them a special
+		// power level. If we don't have a create event, we can't determine
+		// creator privilege, so fall through to the power level event check.
+		if createEvent := r.resolvedCreate; createEvent != nil {
+			for _, creator := range CreatorsFromCreateEvent(createEvent) {
+				if creator == string(user) {
+					return CreatorPowerLevel
+				}
 			}
 		}
-		// otherwise they aren't a creator, so check the PL event.
+		// otherwise they aren't a creator (or we can't tell), so check the PL event.
 	}
 
 	for _, authID := range event.AuthEventIDs() {
@@ -1048,25 +1061,23 @@ func kahnsAlgorithmUsingAuthEvents(events []*stateResV2ConflictedPowerLevel) []*
 	// Now we need to work out which events don't have any incoming auth event
 	// dependencies. These will be placed into the graph first. Remove the event
 	// from the event map as this prevents us from processing it a second time.
-	noIncoming := make(stateResV2ConflictedPowerLevelHeap, 0, len(events))
+	noIncoming := newKahnHeap(len(events), sortStateResV2ConflictedPowerLevelHeap)
 	for eventID, count := range inDegree {
 		if count == 0 {
-			noIncoming.Push(eventMap[eventID])
+			noIncoming.push(eventMap[eventID])
 			delete(eventMap, eventID)
 		}
 	}
-	slices.SortStableFunc(noIncoming, sortStateResV2ConflictedPowerLevelHeap)
 
-	for len(noIncoming) > 0 {
-		// Pop the first event ID off the list of events which have no incoming
-		// auth event dependencies.
-		event := noIncoming.Pop()
+	for noIncoming.len() > 0 {
+		// Pop the event that sorts last off the list of events which have no
+		// incoming auth event dependencies.
+		event := noIncoming.pop()
 
 		// Since there are no incoming dependencies to resolve, we can now add this
-		// event into the graph.
-		graph = append(graph, nil)
-		copy(graph[1:], graph)
-		graph[0] = event
+		// event into the graph. The graph is built in reverse and flipped once
+		// at the end, as prepending would copy the whole graph every time.
+		graph = append(graph, event)
 
 		// Now we should look at the outgoing auth dependencies that this event has.
 		// Since this event is now in the graph, the event's outgoing auth
@@ -1081,19 +1092,19 @@ func kahnsAlgorithmUsingAuthEvents(events []*stateResV2ConflictedPowerLevel) []*
 			// process the outgoing dependencies of this auth event.
 			if inDegree[auth] == 0 {
 				if _, ok := eventMap[auth]; ok {
-					noIncoming.Push(eventMap[auth])
+					noIncoming.push(eventMap[auth])
 					delete(eventMap, auth)
 				}
 			}
 		}
-		slices.SortStableFunc(noIncoming, sortStateResV2ConflictedPowerLevelHeap)
 	}
+	slices.Reverse(graph)
 
 	// If we have stray events left over then add them into the result.
 	if len(eventMap) > 0 {
 		remaining := make(stateResV2ConflictedPowerLevelHeap, 0, len(events))
 		for _, event := range eventMap {
-			remaining.Push(event)
+			remaining = append(remaining, event)
 		}
 		slices.SortStableFunc(remaining, sortStateResV2ConflictedPowerLevelHeap)
 		graph = append(remaining, graph...)
@@ -1134,25 +1145,23 @@ func kahnsAlgorithmUsingPrevEvents(events []*stateResV2ConflictedOther) []*state
 	// Now we need to work out which events don't have any incoming prev event
 	// dependencies. These will be placed into the graph first. Remove the event
 	// from the event map as this prevents us from processing it a second time.
-	noIncoming := make(stateResV2ConflictedOtherHeap, 0, len(events))
+	noIncoming := newKahnHeap(len(events), sortStateResV2ConflictedOtherHeap)
 	for eventID, count := range inDegree {
 		if count == 0 {
-			noIncoming.Push(eventMap[eventID])
+			noIncoming.push(eventMap[eventID])
 			delete(eventMap, eventID)
 		}
 	}
-	slices.SortStableFunc(noIncoming, sortStateResV2ConflictedOtherHeap)
 
-	for len(noIncoming) > 0 {
-		// Pop the first event ID off the list of events which have no incoming
-		// prev event dependencies.
-		event := noIncoming.Pop()
+	for noIncoming.len() > 0 {
+		// Pop the event that sorts last off the list of events which have no
+		// incoming prev event dependencies.
+		event := noIncoming.pop()
 
 		// Since there are no incoming dependencies to resolve, we can now add this
-		// event into the graph.
-		graph = append(graph, nil)
-		copy(graph[1:], graph)
-		graph[0] = event
+		// event into the graph. The graph is built in reverse and flipped once
+		// at the end, as prepending would copy the whole graph every time.
+		graph = append(graph, event)
 
 		// Now we should look at the outgoing prev dependencies that this event has.
 		// Since this event is now in the graph, the event's outgoing prev
@@ -1167,13 +1176,13 @@ func kahnsAlgorithmUsingPrevEvents(events []*stateResV2ConflictedOther) []*state
 			// process the outgoing dependencies of this prev event.
 			if inDegree[prev] == 0 {
 				if _, ok := eventMap[prev]; ok {
-					noIncoming.Push(eventMap[prev])
+					noIncoming.push(eventMap[prev])
 					delete(eventMap, prev)
 				}
 			}
 		}
-		slices.SortStableFunc(noIncoming, sortStateResV2ConflictedOtherHeap)
 	}
+	slices.Reverse(graph)
 
 	// If we have stray events left over then add them into the result.
 	if len(eventMap) > 0 {
@@ -1187,7 +1196,7 @@ func kahnsAlgorithmUsingPrevEvents(events []*stateResV2ConflictedOther) []*state
 	return graph
 }
 
-// Convert a list of PDUs into a set, keyed off the event ID of the PDU
+// Convert a list of PDUs into a set, keyed off the event ID of the PDU.
 func newPDUSet(pdus []PDU) *sets.HashSet[PDU, string] {
 	s := sets.NewHashSetFunc[PDU, string](len(pdus), func(p PDU) string {
 		return p.EventID()

@@ -1,6 +1,7 @@
 package gomatrixserverlib
 
 import (
+	"crypto/rand"
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
@@ -8,25 +9,30 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
+	"golang.org/x/crypto/ed25519"
+
+	"codefloe.com/pat-s/gomatrixserverlib/spec"
 )
 
 func makeStickyEvent(t *testing.T, durationMS int64, originTS int64, stateKey *string) PDU {
 	verImpl := MustGetRoomVersion(RoomVersionV12)
 
-	m := map[string]interface{}{
+	m := map[string]any{
 		"sticky": map[string]int64{
 			"duration_ms": durationMS,
 		},
 		"room_id": "!L6nFTAu28CEi9yn9up1SUiKtTNnKt2yomgy2JFRT2Zk",
 		"type":    "m.room.message",
 		"sender":  "@user:localhost",
-		"content": map[string]interface{}{
+		"content": map[string]any{
 			"body":    "Hello, World!",
 			"msgtype": "m.text",
 		},
 		"origin_server_ts": originTS,
-		"unsigned":         make(map[string]interface{}),
+		"unsigned":         make(map[string]any),
 		"depth":            1,
 		"origin":           "localhost",
 		"prev_events":      []string{"$65vISquU7WNlFCaJeJ5uohlX4LVEPx5yEkAc1hpRf44"},
@@ -34,7 +40,7 @@ func makeStickyEvent(t *testing.T, durationMS int64, originTS int64, stateKey *s
 		"hashes": map[string]string{
 			"sha256": "1234567890",
 		},
-		"signatures": map[string]interface{}{
+		"signatures": map[string]any{
 			"localhost": map[string]string{
 				"ed25519:localhost": "doesn't matter because it's not checked",
 			},
@@ -133,4 +139,56 @@ func TestStickyEndTime(t *testing.T) {
 	// Not a sticky event
 	ev = makeStickyEvent(t, -1, nowTS, nil) // -1 creates a non-sticky event
 	assert.Equal(t, time.Time{}, ev.StickyEndTime(received))
+}
+
+func buildProtoEvent(t *testing.T, sticky *StickyEventData) (PDU, time.Time) {
+	t.Helper()
+	_, sk, err := ed25519.GenerateKey(rand.Reader)
+	require.NoError(t, err)
+
+	verImpl := MustGetRoomVersion(RoomVersionV10)
+	eb := verImpl.NewEventBuilderFromProtoEvent(&ProtoEvent{
+		SenderID:       "@user:localhost",
+		RoomID:         "!room:localhost",
+		Type:           "org.matrix.msc3401.call.member",
+		PrevEvents:     []string{"$prev"},
+		AuthEvents:     []string{"$auth"},
+		Depth:          2,
+		Content:        spec.RawJSON(`{"body":"hello"}`),
+		UnstableSticky: sticky,
+	})
+	now := time.Now().UTC().Truncate(time.Millisecond)
+	ev, err := eb.Build(now, "localhost", "ed25519:1", sk)
+	require.NoError(t, err)
+	return ev, now
+}
+
+func TestProtoEventUnstableSticky(t *testing.T) {
+	ev, now := buildProtoEvent(t, &StickyEventData{DurationMillis: 60000})
+
+	// The key is emitted at the top level of the PDU.
+	assert.Equal(t, int64(60000), gjson.GetBytes(ev.JSON(), "msc4354_sticky.duration_ms").Int())
+	assert.True(t, ev.IsSticky(now, now))
+	assert.Equal(t, now.Add(time.Minute), ev.StickyEndTime(now))
+
+	// The key is covered by the content hash, so tampering with it is detected.
+	require.NoError(t, checkEventContentHash(ev.JSON()))
+	tampered, err := sjson.SetBytes(ev.JSON(), "msc4354_sticky.duration_ms", 3600000)
+	require.NoError(t, err)
+	assert.Error(t, checkEventContentHash(tampered))
+
+	// The key is not protected from redaction, so a redacted event is no longer sticky.
+	redactedJSON, err := MustGetRoomVersion(RoomVersionV10).RedactEventJSON(ev.JSON())
+	require.NoError(t, err)
+	assert.False(t, gjson.GetBytes(redactedJSON, "msc4354_sticky").Exists())
+	ev.Redact()
+	assert.False(t, ev.IsSticky(now, now))
+	assert.True(t, ev.StickyEndTime(now).IsZero())
+	assert.False(t, gjson.GetBytes(ev.JSON(), "msc4354_sticky").Exists())
+}
+
+func TestProtoEventWithoutSticky(t *testing.T) {
+	ev, now := buildProtoEvent(t, nil)
+	assert.False(t, gjson.GetBytes(ev.JSON(), "msc4354_sticky").Exists())
+	assert.False(t, ev.IsSticky(now, now))
 }

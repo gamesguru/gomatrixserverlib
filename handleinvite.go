@@ -19,10 +19,11 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/matrix-org/gomatrixserverlib/spec"
-	"github.com/matrix-org/util"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/crypto/ed25519"
+
+	"codefloe.com/pat-s/gomatrixserverlib/internal"
+	"codefloe.com/pat-s/gomatrixserverlib/spec"
 )
 
 type HandleInviteInput struct {
@@ -52,7 +53,7 @@ type HandleInviteV3Input struct {
 
 // HandleInvite - Ensures the incoming invite request is valid and signs the event
 // to return back to the remote server.
-// On success returns a fully formed & signed Invite Event
+// On success returns a fully formed & signed Invite Event.
 func HandleInvite(ctx context.Context, input HandleInviteInput) (PDU, error) {
 	if input.RoomQuerier == nil || input.MembershipQuerier == nil || input.StateQuerier == nil || input.UserIDQuerier == nil {
 		panic("Missing valid Querier")
@@ -96,7 +97,7 @@ func HandleInvite(ctx context.Context, input HandleInviteInput) (PDU, error) {
 	}}
 	verifyResults, err := input.Verifier.VerifyJSONs(ctx, verifyRequests)
 	if err != nil {
-		util.GetLogger(ctx).WithError(err).Error("keys.VerifyJSONs failed")
+		internal.GetLogger(ctx).WithError(err).Error("keys.VerifyJSONs failed")
 		return nil, spec.InternalServerError{}
 	}
 	if verifyResults[0].Error != nil {
@@ -141,7 +142,7 @@ func HandleInviteV3(ctx context.Context, input HandleInviteV3Input) (PDU, error)
 	// Otherwise we need to create a new senderID
 	invitedSenderID, signingKey, err := input.GetOrCreateSenderID(ctx, input.InvitedUser, input.RoomID, string(input.RoomVersion))
 	if err != nil {
-		util.GetLogger(ctx).WithError(err).Error("GetOrCreateSenderID failed")
+		internal.GetLogger(ctx).WithError(err).Error("GetOrCreateSenderID failed")
 		return nil, spec.InternalServerError{}
 	}
 
@@ -153,7 +154,7 @@ func HandleInviteV3(ctx context.Context, input HandleInviteV3Input) (PDU, error)
 	fullEventBuilder := verImpl.NewEventBuilderFromProtoEvent(&input.InviteProtoEvent)
 	fullEvent, err := fullEventBuilder.Build(time.Now(), origin, keyID, signingKey)
 	if err != nil {
-		util.GetLogger(ctx).WithError(err).Error("failed building invite event")
+		internal.GetLogger(ctx).WithError(err).Error("failed building invite event")
 		return nil, spec.InternalServerError{}
 	}
 
@@ -163,7 +164,7 @@ func HandleInviteV3(ctx context.Context, input HandleInviteV3Input) (PDU, error)
 func handleInviteCommonChecks(ctx context.Context, input HandleInviteInput, event PDU, sender spec.UserID) (PDU, error) {
 	isKnownRoom, err := input.RoomQuerier.IsKnownRoom(ctx, input.RoomID)
 	if err != nil {
-		util.GetLogger(ctx).WithError(err).Error("failed querying known room")
+		internal.GetLogger(ctx).WithError(err).Error("failed querying known room")
 		return nil, spec.InternalServerError{}
 	}
 
@@ -174,17 +175,26 @@ func handleInviteCommonChecks(ctx context.Context, input HandleInviteInput, even
 	}).Debug("processing incoming federation invite event")
 
 	inviteState := input.StrippedState
+	if _, err = ValidateStrippedStatePDUs(ctx, input.RoomID, input.RoomVersion, inviteState, input.Verifier, input.UserIDQuerier); err != nil {
+		if StrippedStateRejectsInvite(input.RoomVersion, err) {
+			logger.WithError(err).Warn("rejecting invite with invalid invite_room_state")
+			return nil, spec.MissingParam(fmt.Sprintf("Invalid invite_room_state: %s", err))
+		}
+		// Warn instead, so that servers which predate MSC4311 can still
+		// invite our users.
+		logger.WithError(err).Warn("accepting invite with invite_room_state that fails MSC4311 validation")
+	}
 	if len(inviteState) == 0 {
 		inviteState, err = GenerateStrippedState(ctx, input.RoomID, input.StateQuerier)
 		if err != nil {
-			util.GetLogger(ctx).WithError(err).Error("failed generating stripped state")
+			internal.GetLogger(ctx).WithError(err).Error("failed generating stripped state")
 			return nil, spec.InternalServerError{}
 		}
 	}
 
 	if isKnownRoom {
 		if len(inviteState) == 0 {
-			util.GetLogger(ctx).WithError(err).Error("failed generating stripped state for known room")
+			internal.GetLogger(ctx).WithError(err).Error("failed generating stripped state for known room")
 			return nil, spec.InternalServerError{}
 		}
 		err := abortIfAlreadyJoined(ctx, input.RoomID, input.InvitedSenderID, input.MembershipQuerier)

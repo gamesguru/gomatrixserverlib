@@ -20,9 +20,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/matrix-org/gomatrixserverlib/spec"
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/crypto/ed25519"
+
+	"codefloe.com/pat-s/gomatrixserverlib/spec"
 )
 
 func stateNeededEquals(a, b StateNeeded) bool {
@@ -1545,17 +1546,15 @@ func Test_checkUserLevels(t *testing.T) {
 			err := checkUserLevels(tt.args.senderLevel, spec.SenderID(senderID), tt.args.oldPowerLevels, tt.args.newPowerLevels)
 			if err != nil && !tt.wantErr {
 				t.Errorf("checkUserLevels() error = %v, wantErr %v", err, tt.wantErr)
-			} else {
-				if err != nil {
-					t.Logf("Error: %s", err)
-				}
+			} else if err != nil {
+				t.Logf("Error: %s", err)
 			}
 		})
 	}
 }
 
 // Test that we allow broken membership content, i.e.
-// displayname is boolean, an object or array
+// displayname is boolean, an object or array.
 func TestMembershipAllowed(t *testing.T) {
 	testEventAllowed(t, `{
 		"auth_events": {

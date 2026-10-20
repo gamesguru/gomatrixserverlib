@@ -4,9 +4,10 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/matrix-org/gomatrixserverlib/spec"
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
+
+	"codefloe.com/pat-s/gomatrixserverlib/spec"
 )
 
 // RoomVersion refers to the room version for a specific room.
@@ -47,6 +48,10 @@ type IRoomVersion interface {
 	// StrictEventByteLimits returns true if this room version enforces field
 	// length limits in bytes rather than Unicode codepoints (introduced in v11 for synapse).
 	StrictEventByteLimits() bool
+	// RedactsInContent reports whether m.room.redaction events carry the
+	// redacted event ID in content.redacts rather than the top-level redacts
+	// key (MSC2174, room version 11 and later).
+	RedactsInContent() bool
 }
 
 type KnownRoomVersionFunc func(RoomVersion) bool
@@ -89,7 +94,7 @@ const (
 
 // Event ID format constants.
 const (
-	EventIDFormatV1 EventIDFormat = iota + 1 // randomised
+	EventIDFormatV1 EventIDFormat = iota + 1 // randomized
 	EventIDFormatV2                          // base64-encoded hash of event
 	EventIDFormatV3                          // URL-safe base64-encoded hash of event
 )
@@ -319,6 +324,7 @@ var roomVersionMeta = map[RoomVersion]IRoomVersion{
 		eventFormat:                            EventFormatV2,
 		eventIDFormat:                          EventIDFormatV3,
 		redactionAlgorithm:                     redactEventJSONV5,
+		redactsInContent:                       true,
 		signatureValidityCheckFunc:             StrictValiditySignatureCheck,
 		canonicalJSONCheck:                     verifyEnforcedCanonicalJSON,
 		checkPowerLevelEvent:                   checkPowerLevelEventV2,
@@ -340,6 +346,7 @@ var roomVersionMeta = map[RoomVersion]IRoomVersion{
 		eventFormat:                    EventFormatV2,
 		eventIDFormat:                  EventIDFormatV3,
 		redactionAlgorithm:             redactEventJSONV5,
+		redactsInContent:               true,
 		signatureValidityCheckFunc:     StrictValiditySignatureCheck,
 		canonicalJSONCheck:             verifyEnforcedCanonicalJSON,
 		checkPowerLevelEvent:           checkPowerLevelEventV3,
@@ -426,6 +433,7 @@ var roomVersionMeta = map[RoomVersion]IRoomVersion{
 		eventFormat:                    EventFormatV2,
 		eventIDFormat:                  EventIDFormatV3,
 		redactionAlgorithm:             redactEventJSONV5,
+		redactsInContent:               true,
 		signatureValidityCheckFunc:     StrictValiditySignatureCheck,
 		canonicalJSONCheck:             verifyEnforcedCanonicalJSON,
 		checkPowerLevelEvent:           checkPowerLevelEventV3,
@@ -450,6 +458,7 @@ var roomVersionMeta = map[RoomVersion]IRoomVersion{
 		eventFormat:                    EventFormatV2,
 		eventIDFormat:                  EventIDFormatV3,
 		redactionAlgorithm:             redactEventJSONVStateDAGs,
+		redactsInContent:               true,
 		signatureValidityCheckFunc:     StrictValiditySignatureCheck,
 		canonicalJSONCheck:             verifyEnforcedCanonicalJSON,
 		checkPowerLevelEvent:           checkPowerLevelEventV3,
@@ -520,7 +529,7 @@ func StableRoomVersions() map[RoomVersion]IRoomVersion {
 	return versions
 }
 
-// SetRoomVersion sets a room version implementation so it is recognised by gomatrixserverlib.
+// SetRoomVersion sets a room version implementation so it is recognized by gomatrixserverlib.
 // This is useful when you are testing custom room versions which gomatrixserverlib may be unaware of,
 // e.g for Complement usage. Full room version impls should be defined in gomatrixserverlib, but
 // partial impls for testing can be set here.
@@ -561,7 +570,9 @@ type RoomVersionImpl struct {
 	// field length limits are in bytes rather than Unicode codepoints
 	strictEventByteLimits bool
 	// Events form two graphs, a state DAG and an event DAG.
-	stateDAGs                      bool
+	stateDAGs bool
+	// m.room.redaction events carry the redacted event ID in content.redacts (MSC2174).
+	redactsInContent               bool
 	checkRestrictedJoin            func(ctx context.Context, localServerName spec.ServerName, roomQuerier RestrictedRoomJoinQuerier, roomID spec.RoomID, senderID spec.SenderID, privilegedCreators bool) (string, error)
 	restrictedJoinServernameFunc   func(content []byte) (spec.ServerName, error)
 	checkRestrictedJoinAllowedFunc func() error
@@ -587,6 +598,10 @@ func (v RoomVersionImpl) DomainlessRoomIDs() bool {
 
 func (v RoomVersionImpl) StateDAGs() bool {
 	return v.stateDAGs
+}
+
+func (v RoomVersionImpl) RedactsInContent() bool {
+	return v.redactsInContent
 }
 
 func (v RoomVersionImpl) PrivilegedCreators() bool {
@@ -680,6 +695,9 @@ func (v RoomVersionImpl) NewEventFromTrustedJSONWithEventID(eventID string, even
 }
 
 func (v RoomVersionImpl) NewEventFromUntrustedJSON(eventJSON []byte) (result PDU, err error) {
+	if err = validateEventContent(eventJSON); err != nil {
+		return nil, BadJSONError{err}
+	}
 	return v.newEventFromUntrustedJSONFunc(eventJSON, v)
 }
 
@@ -688,6 +706,7 @@ func (v RoomVersionImpl) NewEventBuilder() *EventBuilder {
 		version: v,
 	}
 }
+
 func (v RoomVersionImpl) NewEventBuilderFromProtoEvent(pe *ProtoEvent) *EventBuilder {
 	eb := v.NewEventBuilder()
 	// for now copies all fields, but we should be specific depending on the room version
@@ -703,6 +722,7 @@ func (v RoomVersionImpl) NewEventBuilderFromProtoEvent(pe *ProtoEvent) *EventBui
 	eb.Type = pe.Type
 	eb.Unsigned = pe.Unsigned
 	eb.PrevStateEvents = pe.PrevStateEvents
+	eb.UnstableSticky = pe.UnstableSticky
 	return eb
 }
 

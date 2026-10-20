@@ -1,1 +1,15 @@
 .*.swp
+
+# Build artifacts
+bin/
+*.test
+*.prof
+cover.out
+
+# IDE directories
+.idea/
+.vscode/
+
+# Vendor (if used locally)
+vendor/
+CLAUDE.md

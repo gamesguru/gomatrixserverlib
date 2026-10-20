@@ -3,7 +3,7 @@ package fclient
 import (
 	"encoding/json"
 
-	"github.com/matrix-org/gomatrixserverlib"
+	"codefloe.com/pat-s/gomatrixserverlib"
 )
 
 func NewInviteV3Request(event gomatrixserverlib.ProtoEvent, version gomatrixserverlib.RoomVersion, state []gomatrixserverlib.InviteStrippedState) (
@@ -31,18 +31,14 @@ type InviteV3Request struct {
 	}
 }
 
-// MarshalJSON implements json.Marshaller
+// MarshalJSON implements json.Marshaller.
 func (i InviteV3Request) MarshalJSON() ([]byte, error) {
 	return json.Marshal(i.fields)
 }
 
-// UnmarshalJSON implements json.Unmarshaller
+// UnmarshalJSON implements json.Unmarshaller.
 func (i *InviteV3Request) UnmarshalJSON(data []byte) error {
-	err := json.Unmarshal(data, &i.fields)
-	if err != nil {
-		return err
-	}
-	return err
+	return json.Unmarshal(data, &i.fields)
 }
 
 // Event returns the invite event.
@@ -55,8 +51,9 @@ func (i *InviteV3Request) RoomVersion() gomatrixserverlib.RoomVersion {
 	return i.fields.RoomVersion
 }
 
-// InviteRoomState returns stripped state events for the room, containing
-// enough information for the client to identify the room.
+// InviteRoomState returns the room state entries sent with the invite,
+// containing enough information for the client to identify the room.
+// Since MSC4311 these are full PDUs, see gomatrixserverlib.ValidateStrippedStatePDUs.
 func (i *InviteV3Request) InviteRoomState() []gomatrixserverlib.InviteStrippedState {
 	return i.fields.InviteRoomState
 }

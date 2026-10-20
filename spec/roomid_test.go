@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/matrix-org/gomatrixserverlib/spec"
+	"codefloe.com/pat-s/gomatrixserverlib/spec"
 )
 
 func TestValidRoomIDs(t *testing.T) {
@@ -23,7 +23,6 @@ func TestValidRoomIDs(t *testing.T) {
 			raw := fmt.Sprintf("!%s:%s", tc.opaque, tc.domain)
 
 			roomID, err := spec.NewRoomID(raw)
-
 			if err != nil {
 				t.Fatalf("valid roomID should not fail: %s", err.Error())
 			}

@@ -17,11 +17,13 @@ package gomatrixserverlib
 import (
 	"context"
 	"crypto/ed25519"
+	"errors"
 	"fmt"
 	"time"
 
-	"github.com/matrix-org/gomatrixserverlib/spec"
 	"github.com/sirupsen/logrus"
+
+	"codefloe.com/pat-s/gomatrixserverlib/spec"
 )
 
 type GetLatestEvents func(ctx context.Context, roomID spec.RoomID, eventsNeeded []StateKeyTuple) (LatestEvents, error)
@@ -51,14 +53,15 @@ type PerformInviteInput struct {
 // to happen.
 // On success will return either nothing (in the case of inviting a local user) or
 // a fully formed & signed Invite Event (in the case of inviting a remote user)
-// nolint:gocyclo
+//
+//nolint:gocyclo
 func PerformInvite(ctx context.Context, input PerformInviteInput, fedClient FederatedInviteClient) (PDU, error) {
 	if input.MembershipQuerier == nil || input.StateQuerier == nil || input.UserIDQuerier == nil ||
 		input.SenderIDQuerier == nil || input.SenderIDCreator == nil || input.EventQuerier == nil {
-		panic("Missing valid Querier")
+		return nil, fmt.Errorf("PerformInvite: missing valid Querier")
 	}
 	if ctx == nil {
-		panic("Missing valid Context")
+		return nil, fmt.Errorf("PerformInvite: missing valid Context")
 	}
 
 	logger := createInviteLogger(ctx, input.RoomID, input.Inviter, input.Invitee, "")
@@ -212,7 +215,7 @@ func PerformInvite(ctx context.Context, input PerformInviteInput, fedClient Fede
 			inviteEvent, err = fedClient.SendInviteV3(ctx, input.EventTemplate, input.Invitee, input.RoomVersion, inviteState)
 			if err != nil {
 				logger.WithError(err).Error("fedClient.SendInviteV3 failed")
-				return nil, spec.Forbidden(err.Error())
+				return nil, remoteInviteError(err)
 			}
 			logger.Debugf("Federated SendInviteV3 success to user %s", input.Invitee.String())
 
@@ -267,13 +270,30 @@ func PerformInvite(ctx context.Context, input PerformInviteInput, fedClient Fede
 			inviteEvent, err = fedClient.SendInvite(ctx, inviteEvent, inviteState)
 			if err != nil {
 				logger.WithError(err).WithField("event_id", eventID).Error("fedClient.SendInvite failed")
-				return nil, spec.Forbidden(err.Error())
+				return nil, remoteInviteError(err)
 			}
 			logger.Debugf("Federated SendInvite success with event ID %s", eventID)
 		}
 	}
 
 	return inviteEvent, nil
+}
+
+// ErrRemoteRejectedInviteState is returned by PerformInvite when the invited
+// server rejected our invite_room_state with M_MISSING_PARAM. MSC4311 asks
+// for such failures to surface to clients as a 5xx error, since there is
+// nothing the client can do differently to make the request succeed.
+var ErrRemoteRejectedInviteState = errors.New("remote server rejected the invite room state")
+
+func remoteInviteError(err error) error {
+	var httpErr spec.HTTPError
+	if errors.As(err, &httpErr) {
+		var respErr spec.RespError
+		if errors.As(httpErr.WrappedError, &respErr) && respErr.ErrCode == string(spec.ErrorMissingParam) {
+			return fmt.Errorf("%w: %s", ErrRemoteRejectedInviteState, respErr.Err)
+		}
+	}
+	return spec.Forbidden(err.Error())
 }
 
 // truncateAuthAndPrevEvents limits the number of events we add into
@@ -285,10 +305,10 @@ func truncateAuthAndPrevEvents(auth, prev []string) (
 	truncAuth, truncPrev []string,
 ) {
 	truncAuth, truncPrev = auth, prev
-	if len(truncAuth) > 10 {
+	if len(truncAuth) > 10 { //nolint:mnd
 		truncAuth = truncAuth[:10]
 	}
-	if len(truncPrev) > 20 {
+	if len(truncPrev) > 20 { //nolint:mnd
 		truncPrev = truncPrev[:20]
 	}
 	return

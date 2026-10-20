@@ -15,7 +15,7 @@ type ServerName string
 // ParseAndValidateServerName splits a ServerName into a host and port part,
 // and checks that it is a valid server name according to the spec.
 //
-// if there is no explicit port, returns '-1' as the port.
+// If there is no explicit port, returns '-1' as the port.
 func ParseAndValidateServerName(serverName ServerName) (host string, port int, valid bool) {
 	// Don't go any further if the server name is an empty string.
 	if len(serverName) == 0 {
@@ -83,7 +83,7 @@ func isDNSNameChar(r rune) bool {
 // splitServerName splits a ServerName into host and port, without doing
 // any validation.
 //
-// if there is no explicit port, returns '-1' as the port
+// If there is no explicit port, returns '-1' as the port.
 func splitServerName(serverName ServerName) (string, int) {
 	nameStr := string(serverName)
 

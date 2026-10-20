@@ -12,10 +12,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/matrix-org/gomatrixserverlib"
-	"github.com/matrix-org/gomatrixserverlib/fclient"
-	"github.com/matrix-org/gomatrixserverlib/spec"
 	"golang.org/x/crypto/ed25519"
+
+	"codefloe.com/pat-s/gomatrixserverlib"
+	"codefloe.com/pat-s/gomatrixserverlib/fclient"
+	"codefloe.com/pat-s/gomatrixserverlib/spec"
 )
 
 type roundTripper struct {
@@ -33,7 +34,7 @@ func TestSendJoinFallback(t *testing.T) {
 	targetServerName := spec.ServerName("target.server.name")
 	keyID := gomatrixserverlib.KeyID("ed25519:auto")
 	_, privateKey, _ := ed25519.GenerateKey(nil)
-	roomVerImpl, _ := gomatrixserverlib.GetRoomVersion((gomatrixserverlib.RoomVersionV1))
+	roomVerImpl, _ := gomatrixserverlib.GetRoomVersion(gomatrixserverlib.RoomVersionV1)
 	// we don't care about the actual contents, just that it ferries data across fine.
 	retEv := spec.RawJSON(`{"auth_events":[],"content":{"creator":"@userid:baba.is.you"},"depth":0,"event_id":"$WCraVpPZe5TtHAqs:baba.is.you","hashes":{"sha256":"EehWNbKy+oDOMC0vIvYl1FekdDxMNuabXKUVzV7DG74"},"origin":"baba.is.you","origin_server_ts":0,"prev_events":[],"prev_state":[],"room_id":"!roomid:baba.is.you","sender":"@userid:baba.is.you","signatures":{"baba.is.you":{"ed25519:auto":"08aF4/bYWKrdGPFdXmZCQU6IrOE1ulpevmWBM3kiShJPAbRbZ6Awk7buWkIxlMF6kX3kb4QpbAlZfHLQgncjCw"}},"state_key":"","type":"m.room.create"}`)
 	wantRes := fclient.RespSendJoin{
@@ -41,7 +42,7 @@ func TestSendJoinFallback(t *testing.T) {
 			retEv,
 		},
 	}
-	v1Res := []interface{}{
+	v1Res := []any{
 		200, wantRes,
 	}
 	v1ResBytes, err := json.Marshal(v1Res)
@@ -94,7 +95,7 @@ func TestSendJoinFallback(t *testing.T) {
 	}
 }
 
-// The purpose of this test is to ensure that the federation client is capable of marshalling into
+// The purpose of this test is to ensure that the federation client is capable of marshaling into
 // a RespSendJoin response type. This is mostly a sanity check that EventJSON and EventJSONs behave
 // correctly.
 func TestSendJoinJSON(t *testing.T) {
@@ -152,10 +153,10 @@ func TestSendJoinJSON(t *testing.T) {
 	wantStateEvents := gomatrixserverlib.EventJSONs{[]byte(retEv)}
 	wantAuthChain := gomatrixserverlib.EventJSONs{[]byte(retEv)}
 	if !reflect.DeepEqual(res.GetStateEvents(), wantStateEvents) {
-		t.Fatalf("SendJoin response got state %+v want %+v", jsonify(res.GetStateEvents()), jsonify(wantStateEvents))
+		t.Fatalf("SendJoin response got state %+v want %+v", jsonify(t, res.GetStateEvents()), jsonify(t, wantStateEvents))
 	}
 	if !reflect.DeepEqual(res.GetAuthEvents(), wantAuthChain) {
-		t.Fatalf("SendJoin response got auth %+v want %+v", jsonify(res.GetAuthEvents()), jsonify(wantAuthChain))
+		t.Fatalf("SendJoin response got auth %+v want %+v", jsonify(t, res.GetAuthEvents()), jsonify(t, wantAuthChain))
 	}
 }
 
@@ -197,7 +198,7 @@ func TestSendTransactionToRelay(t *testing.T) {
 		),
 	)
 
-	txn := createTransaction(serverName, targetServerName, *user)
+	txn := createTransaction(t, serverName, targetServerName, *user)
 	forwardingServer := spec.ServerName("mailbox.server")
 	_, err = fc.P2PSendTransactionToRelay(context.Background(), *user, txn, forwardingServer)
 	if err != nil {
@@ -244,7 +245,7 @@ func TestSendTransactionToRelayReportsFailure(t *testing.T) {
 		),
 	)
 
-	txn := createTransaction(serverName, targetServerName, *user)
+	txn := createTransaction(t, serverName, targetServerName, *user)
 	forwardingServer := spec.ServerName("mailbox.server")
 	_, err = fc.P2PSendTransactionToRelay(context.Background(), *user, txn, forwardingServer)
 	if err == nil {
@@ -256,10 +257,12 @@ func TestSendTransactionToRelayReportsFailure(t *testing.T) {
 }
 
 func createTransaction(
+	t *testing.T,
 	testOrigin spec.ServerName,
 	testDestination spec.ServerName,
 	userID spec.UserID,
 ) gomatrixserverlib.Transaction {
+	t.Helper()
 	txn := gomatrixserverlib.Transaction{}
 	txn.PDUs = []json.RawMessage{
 		[]byte(`{"auth_events":[["$0ok8ynDp7kjc95e3:kaer.morhen",{"sha256":"sWCi6Ckp9rDimQON+MrUlNRkyfZ2tjbPbWfg2NMB18Q"}],["$LEwEu0kxrtu5fOiS:kaer.morhen",{"sha256":"1aKajq6DWHru1R1HJjvdWMEavkJJHGaTmPvfuERUXaA"}]],"content":{"body":"Test Message"},"depth":5,"event_id":"$gl2T9l3qm0kUbiIJ:kaer.morhen","hashes":{"sha256":"Qx3nRMHLDPSL5hBAzuX84FiSSP0K0Kju2iFoBWH4Za8"},"origin":"kaer.morhen","origin_server_ts":0,"prev_events":[["$UKNe10XzYzG0TeA9:kaer.morhen",{"sha256":"KtSRyMjt0ZSjsv2koixTRCxIRCGoOp6QrKscsW97XRo"}]],"room_id":"!roomid:kaer.morhen","sender":"@userid:kaer.morhen","signatures":{"kaer.morhen":{"ed25519:auto":"sqDgv3EG7ml5VREzmT9aZeBpS4gAPNIaIeJOwqjDhY0GPU/BcpX5wY4R7hYLrNe5cChgV+eFy/GWm1Zfg5FfDg"}},"type":"m.room.message"}`),
@@ -267,19 +270,23 @@ func createTransaction(
 	txn.Origin = testOrigin
 	txn.TransactionID = gomatrixserverlib.TransactionID(fmt.Sprintf("%d", time.Now().UnixNano()))
 	txn.Destination = testDestination
-	var federationPathPrefixV1 = "/_matrix/federation/v1"
+	federationPathPrefixV1 := "/_matrix/federation/v1"
 	path := federationPathPrefixV1 + "/send_relay/" + string(txn.TransactionID) + "/" + userID.String()
 	request := fclient.NewFederationRequest("PUT", txn.Origin, txn.Destination, path)
 	err := request.SetContent(txn)
 	if err != nil {
-		println("failed setting federation request content")
+		t.Fatal("failed setting federation request content")
 	}
 
 	return txn
 }
 
-func jsonify(x interface{}) string {
-	b, _ := json.Marshal(x)
+func jsonify(t *testing.T, x any) string {
+	t.Helper()
+	b, err := json.Marshal(x)
+	if err != nil {
+		t.Fatal(err)
+	}
 	return string(b)
 }
 

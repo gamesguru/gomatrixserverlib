@@ -25,15 +25,15 @@ import (
 const (
 	macaroonVersion = macaroon.V2
 	defaultDuration = 2 * 60
-	// UserPrefix is a common prefix for every user_id caveat
+	// UserPrefix is a common prefix for every user_id caveat.
 	UserPrefix = "user_id = "
-	// TimePrefix is a common prefix for every expiry caveat
+	// TimePrefix is a common prefix for every expiry caveat.
 	TimePrefix = "time < "
-	// Gen is a common caveat for every token
+	// Gen is a common caveat for every token.
 	Gen = "gen = 1"
 )
 
-// TokenOptions represent parameters of Token
+// TokenOptions represent parameters of Token.
 type TokenOptions struct {
 	ServerPrivateKey []byte `yaml:"private_key"`
 	ServerName       string `yaml:"server_name"`
@@ -44,10 +44,10 @@ type TokenOptions struct {
 }
 
 // GenerateLoginToken generates a short term login token to be used as
-// token authentication ("m.login.token")
+// token authentication ("m.login.token").
 func GenerateLoginToken(op TokenOptions) (string, error) {
 	if !isValidTokenOptions(op) {
-		return "", errors.New("The given TokenOptions is invalid")
+		return "", errors.New("the given TokenOptions is invalid")
 	}
 
 	mac, err := generateBaseMacaroon(op.ServerPrivateKey, op.ServerName, op.UserID)
@@ -72,7 +72,7 @@ func GenerateLoginToken(op TokenOptions) (string, error) {
 	return urlSafeEncode, nil
 }
 
-// isValidTokenOptions checks for required fields in a TokenOptions
+// isValidTokenOptions checks for required fields in a TokenOptions.
 func isValidTokenOptions(op TokenOptions) bool {
 	if op.ServerPrivateKey == nil || op.ServerName == "" || op.UserID == "" {
 		return false
@@ -84,9 +84,9 @@ func isValidTokenOptions(op TokenOptions) bool {
 // Returns a macaroon tied with userID,
 // returns an error if something goes wrong.
 func generateBaseMacaroon(
-	secret []byte, ServerName string, userID string,
+	secret []byte, serverName string, userID string,
 ) (*macaroon.Macaroon, error) {
-	mac, err := macaroon.New(secret, []byte(userID), ServerName, macaroonVersion)
+	mac, err := macaroon.New(secret, []byte(userID), serverName, macaroonVersion)
 	if err != nil {
 		return nil, macaroonError(err)
 	}
@@ -105,11 +105,11 @@ func generateBaseMacaroon(
 }
 
 func macaroonError(err error) error {
-	return fmt.Errorf("Macaroon creation failed: %s", err.Error())
+	return fmt.Errorf("macaroon creation failed: %w", err)
 }
 
 // serializeMacaroon takes a macaroon to be serialized.
-// returns its base64 encoded string, URL safe, which can be sent via web, email, etc.
+// Returns its base64 encoded string, URL safe, which can be sent via web, email, etc.
 func serializeMacaroon(m macaroon.Macaroon) (string, error) {
 	bin, err := m.MarshalBinary()
 	if err != nil {

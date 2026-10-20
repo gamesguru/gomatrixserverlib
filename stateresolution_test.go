@@ -200,7 +200,6 @@ func TestSplitConflictedUnconflicted(t *testing.T) {
 		gotConflicted, gotUnconflicted := splitConflictedUnconflicted(tc.algorithm, stateSets)
 		assertIDs(t, tc.name+" (conflicted)", gotConflicted, tc.wantConflicted)
 		assertIDs(t, tc.name+" (unconflicted)", gotUnconflicted, tc.wantUnconflicted)
-
 	}
 }
 

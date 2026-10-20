@@ -1,14 +1,16 @@
 package gomatrixserverlib
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 	"testing"
 	"time"
 
-	"github.com/matrix-org/gomatrixserverlib/spec"
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/crypto/ed25519"
+
+	"codefloe.com/pat-s/gomatrixserverlib/spec"
 )
 
 func TestCheckFields(t *testing.T) {
@@ -23,7 +25,6 @@ func TestCheckFields(t *testing.T) {
 		wantErr         assert.ErrorAssertionFunc
 		wantPersistable bool
 	}{
-
 		{
 			name: "fail due to invalid roomID",
 			input: ProtoEvent{
@@ -71,7 +72,8 @@ func TestCheckFields(t *testing.T) {
 				Unsigned:   spec.RawJSON("{}"),
 			},
 			wantErr: assert.NoError,
-		}, {
+		},
+		{
 			name: "fail due to senderID too large",
 			input: ProtoEvent{
 				SenderID:   fmt.Sprintf("@%s:localhost", strings.Repeat("ä", 200)),
@@ -157,14 +159,14 @@ func TestCheckFields(t *testing.T) {
 						tt.wantErr(t, err, fmt.Sprintf("CheckFields(%v)", tt.input))
 						t.Logf("%v", err)
 					}
-					switch e := err.(type) {
-					case EventValidationError:
-						assert.Equalf(t, tt.wantPersistable, e.Persistable, "unexpected persistable")
+					{
+						var e EventValidationError
+						if errors.As(err, &e) {
+							assert.Equalf(t, tt.wantPersistable, e.Persistable, "unexpected persistable")
+						}
 					}
 				})
-
 			}
-
 		})
 	}
 }

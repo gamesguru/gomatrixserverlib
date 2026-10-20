@@ -17,7 +17,7 @@ import (
 )
 
 var (
-	// If any of these options are missing, validation should fail
+	// If any of these options are missing, validation should fail.
 	invalidMissings   = []string{"ServerPrivateKey", "UserID"}
 	invalidKeyTokenOp = TokenOptions{
 		ServerPrivateKey: []byte("notASecretKey"),

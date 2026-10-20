@@ -3,12 +3,14 @@ package gomatrixserverlib
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"testing"
 	"time"
 
-	"github.com/matrix-org/gomatrixserverlib/spec"
 	"github.com/stretchr/testify/assert"
+
+	"codefloe.com/pat-s/gomatrixserverlib/spec"
 )
 
 var privateKeySeed1 = `QJvXAPj0D9MUb1exkD8pIWmCvT1xajlsB8jRYz/G5HE`
@@ -244,13 +246,13 @@ func TestVerifyJSONsFetcherError(t *testing.T) {
 		AtTS:                 1493142432964,
 		ValidityCheckingFunc: StrictValiditySignatureCheck,
 	}})
-	if err != error(&testErrorFetch) || results != nil {
+	if !errors.Is(err, error(&testErrorFetch)) || results != nil {
 		t.Fatalf("VerifyJSONs(): Wanted (nil, <some error>) got (%#v, %q)", results, err)
 	}
 }
 
 // TestRequestKeyDummy is used as a dummy KeyFetcher to see if we
-// tried to trigger a key fetch operation in a test. didRequest
+// tried to trigger a key fetch operation in a test. DidRequest
 // is false by default, but we'll set it to true in response to a
 // FetchKeys request. See TestRequestKeyAfterValidity.
 type TestRequestKeyDummy struct {
@@ -315,7 +317,7 @@ func TestPublicKeyRequestMarshalUnmarshalText(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	// The map key in the JSON should be marshalled.
+	// The map key in the JSON should be marshaled.
 	if string(j) != expects {
 		t.Fatalf("expected %q, got %q", expects, string(j))
 	}
@@ -336,10 +338,12 @@ type erroringKeyDatabaseError int
 
 func (e *erroringKeyDatabaseError) Error() string { return "An error with the key database" }
 
-var testErrorFetch = erroringKeyDatabaseError(1)
-var testErrorStore = erroringKeyDatabaseError(2)
+var (
+	testErrorFetch = erroringKeyDatabaseError(1)
+	testErrorStore = erroringKeyDatabaseError(2)
+)
 
-// FetcherName implements KeyFetcher
+// FetcherName implements KeyFetcher.
 func (e erroringKeyDatabase) FetcherName() string {
 	return "ErroringKeyDatabase"
 }
@@ -374,28 +378,28 @@ func TestJSONVerifierSelf_VerifyJSONs(t *testing.T) {
 			requests: []VerifyJSONRequest{
 				{ServerName: "nlJIYQHzMN0qNbkrX57e5i0CuUl1CfAdlkw5h1s+TDk", Message: []byte(`{"auth_events":[],"content":{"avatar_url":"","displayname":"anon-20230619_110507-7","membership":"join","mxid_mapping":{"signatures":{"localhost:8802":{"ed25519:CrqzCX":"aodhnvDkPTkU69e/AbHhltztMoLpeGfIYMNe+hvQkG54KNyN8MHlL0u5qVkYqTYOcoXrJzZ4dYydmWOi5/TRCw"}},"user_id":"@anon-20230619_110507-7:localhost:8802","user_room_key":"nlJIYQHzMN0qNbkrX57e5i0CuUl1CfAdlkw5h1s+TDk"}},"depth":8,"hashes":{"sha256":"sXx8rtwS0n405SuPHUSpICiCYHr+/CCw9jJ3nuwnVqs"},"origin":"self","origin_server_ts":1687172711324,"prev_events":["$8zL0XKqRUOWB9kVQyCjKY7ANLuDtCjLglWd6CWW6XrM"],"prev_state":[],"room_id":"!X0Rr8baajYOjRVQ3:localhost:8800","sender":"nlJIYQHzMN0qNbkrX57e5i0CuUl1CfAdlkw5h1s+TDk","signatures":{"nlJIYQHzMN0qNbkrX57e5i0CuUl1CfAdlkw5h1s+TDk":{"ed25519:1":"cmXVJmTqnxme1LYl5P5PP5EVtPLJxgGwXpXU2FOEw9FHtHz9WzrfRMRcrO45/55FrBl+g7kEMWEvr9hmOY/VBA"}},"state_key":"nlJIYQHzMN0qNbkrX57e5i0CuUl1CfAdlkw5h1s+TDk","type":"m.room.member","unsigned":{}}`)},
 			},
-			want: []VerifyJSONResult{{Error: fmt.Errorf("Bad signature from %q with ID %q", "nlJIYQHzMN0qNbkrX57e5i0CuUl1CfAdlkw5h1s+TDk", "ed25519:1")}},
+			want: []VerifyJSONResult{{Error: fmt.Errorf("bad signature from %q with ID %q", "nlJIYQHzMN0qNbkrX57e5i0CuUl1CfAdlkw5h1s+TDk", "ed25519:1")}},
 		},
 		{
 			name: "invalid signature", // changed one character for the signature
 			requests: []VerifyJSONRequest{
 				{ServerName: "nlJIYQHzMN0qNbkrX57e5i0CuUl1CfAdlkw5h1s+TDk", Message: []byte(`{"auth_events":["$JO2AluDC5p0BXHN_2fUPa2Bup4zO0os74kkw9B5Zg8Q","$tjiFWWvrQ7p9lePYf7NgsH4167NnDV77dbaK5pFAUPM","$uhHChO86B5V9JoStcemXOXzyJQ4vCvzxDdcuF2sswBw"],"content":{"avatar_url":"","displayname":"anon-20230619_110507-7","membership":"join","mxid_mapping":{"signatures":{"localhost:8802":{"ed25519:CrqzCX":"aodhnvDkPTkU69e/AbHhltztMoLpeGfIYMNe+hvQkG54KNyN8MHlL0u5qVkYqTYOcoXrJzZ4dYydmWOi5/TRCw"}},"user_id":"@anon-20230619_110507-7:localhost:8802","user_room_key":"nlJIYQHzMN0qNbkrX57e5i0CuUl1CfAdlkw5h1s+TDk"}},"depth":8,"hashes":{"sha256":"sXx8rtwS0n405SuPHUSpICiCYHr+/CCw9jJ3nuwnVqs"},"origin":"self","origin_server_ts":1687172711324,"prev_events":["$8zL0XKqRUOWB9kVQyCjKY7ANLuDtCjLglWd6CWW6XrM"],"prev_state":[],"room_id":"!X0Rr8baajYOjRVQ3:localhost:8800","sender":"nlJIYQHzMN0qNbkrX57e5i0CuUl1CfAdlkw5h1s+TDk","signatures":{"nlJIYQHzMN0qNbkrX57e5i0CuUl1CfAdlkw5h1s+TDk":{"ed25519:1":"caXVJmTqnxme1LYl5P5PP5EVtPLJxgGwXpXU2FOEw9FHtHz9WzrfRMRcrO45/55FrBl+g7kEMWEvr9hmOY/VBA"}},"state_key":"nlJIYQHzMN0qNbkrX57e5i0CuUl1CfAdlkw5h1s+TDk","type":"m.room.member","unsigned":{}}`)},
 			},
-			want: []VerifyJSONResult{{Error: fmt.Errorf("Bad signature from %q with ID %q", "nlJIYQHzMN0qNbkrX57e5i0CuUl1CfAdlkw5h1s+TDk", "ed25519:1")}},
+			want: []VerifyJSONResult{{Error: fmt.Errorf("bad signature from %q with ID %q", "nlJIYQHzMN0qNbkrX57e5i0CuUl1CfAdlkw5h1s+TDk", "ed25519:1")}},
 		},
 		{
 			name: "missing signature", // search ed25519:1, only ed25519:2 exists
 			requests: []VerifyJSONRequest{
 				{ServerName: "nlJIYQHzMN0qNbkrX57e5i0CuUl1CfAdlkw5h1s+TDk", Message: []byte(`{"auth_events":["$JO2AluDC5p0BXHN_2fUPa2Bup4zO0os74kkw9B5Zg8Q","$tjiFWWvrQ7p9lePYf7NgsH4167NnDV77dbaK5pFAUPM","$uhHChO86B5V9JoStcemXOXzyJQ4vCvzxDdcuF2sswBw"],"content":{"avatar_url":"","displayname":"anon-20230619_110507-7","membership":"join","mxid_mapping":{"signatures":{"localhost:8802":{"ed25519:CrqzCX":"aodhnvDkPTkU69e/AbHhltztMoLpeGfIYMNe+hvQkG54KNyN8MHlL0u5qVkYqTYOcoXrJzZ4dYydmWOi5/TRCw"}},"user_id":"@anon-20230619_110507-7:localhost:8802","user_room_key":"nlJIYQHzMN0qNbkrX57e5i0CuUl1CfAdlkw5h1s+TDk"}},"depth":8,"hashes":{"sha256":"sXx8rtwS0n405SuPHUSpICiCYHr+/CCw9jJ3nuwnVqs"},"origin":"self","origin_server_ts":1687172711324,"prev_events":["$8zL0XKqRUOWB9kVQyCjKY7ANLuDtCjLglWd6CWW6XrM"],"prev_state":[],"room_id":"!X0Rr8baajYOjRVQ3:localhost:8800","sender":"nlJIYQHzMN0qNbkrX57e5i0CuUl1CfAdlkw5h1s+TDk","signatures":{"nlJIYQHzMN0qNbkrX57e5i0CuUl1CfAdlkw5h1s+TDk":{"ed25519:2":"cmXVJmTqnxme1LYl5P5PP5EVtPLJxgGwXpXU2FOEw9FHtHz9WzrfRMRcrO45/55FrBl+g7kEMWEvr9hmOY/VBA"}},"state_key":"nlJIYQHzMN0qNbkrX57e5i0CuUl1CfAdlkw5h1s+TDk","type":"m.room.member","unsigned":{}}`)},
 			},
-			want: []VerifyJSONResult{{Error: fmt.Errorf("No signature from %q with ID %q", "nlJIYQHzMN0qNbkrX57e5i0CuUl1CfAdlkw5h1s+TDk", "ed25519:1")}},
+			want: []VerifyJSONResult{{Error: fmt.Errorf("no signature from %q with ID %q", "nlJIYQHzMN0qNbkrX57e5i0CuUl1CfAdlkw5h1s+TDk", "ed25519:1")}},
 		},
 		{
 			name: "no signatures at all", // signatures field removed
 			requests: []VerifyJSONRequest{
 				{ServerName: "nlJIYQHzMN0qNbkrX57e5i0CuUl1CfAdlkw5h1s+TDk", Message: []byte(`{"auth_events":["$JO2AluDC5p0BXHN_2fUPa2Bup4zO0os74kkw9B5Zg8Q","$tjiFWWvrQ7p9lePYf7NgsH4167NnDV77dbaK5pFAUPM","$uhHChO86B5V9JoStcemXOXzyJQ4vCvzxDdcuF2sswBw"],"content":{"avatar_url":"","displayname":"anon-20230619_110507-7","membership":"join","mxid_mapping":{"signatures":{"localhost:8802":{"ed25519:CrqzCX":"aodhnvDkPTkU69e/AbHhltztMoLpeGfIYMNe+hvQkG54KNyN8MHlL0u5qVkYqTYOcoXrJzZ4dYydmWOi5/TRCw"}},"user_id":"@anon-20230619_110507-7:localhost:8802","user_room_key":"nlJIYQHzMN0qNbkrX57e5i0CuUl1CfAdlkw5h1s+TDk"}},"depth":8,"hashes":{"sha256":"sXx8rtwS0n405SuPHUSpICiCYHr+/CCw9jJ3nuwnVqs"},"origin":"self","origin_server_ts":1687172711324,"prev_events":["$8zL0XKqRUOWB9kVQyCjKY7ANLuDtCjLglWd6CWW6XrM"],"prev_state":[],"room_id":"!X0Rr8baajYOjRVQ3:localhost:8800","sender":"nlJIYQHzMN0qNbkrX57e5i0CuUl1CfAdlkw5h1s+TDk","state_key":"nlJIYQHzMN0qNbkrX57e5i0CuUl1CfAdlkw5h1s+TDk","type":"m.room.member","unsigned":{}}`)},
 			},
-			want: []VerifyJSONResult{{Error: fmt.Errorf("No signatures")}},
+			want: []VerifyJSONResult{{Error: fmt.Errorf("no signatures")}},
 		},
 	}
 

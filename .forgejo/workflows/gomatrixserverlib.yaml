@@ -1,0 +1,75 @@
+name: gomatrixserverlib
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - '**.go'
+      - 'go.mod'
+      - 'go.sum'
+      - '.pre-commit-config.yaml'
+      - '.forgejo/workflows/**'
+  pull_request:
+    paths:
+      - '**.go'
+      - 'go.mod'
+      - 'go.sum'
+      - '.pre-commit-config.yaml'
+      - '.forgejo/workflows/**'
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    timeout-minutes: 5
+    name: Linting
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install build-essential
+        run: apt-get update && apt-get install -y build-essential
+      - name: Install Go
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: 'go.mod'
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v9
+
+  test:
+    timeout-minutes: 10
+    name: Tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install build-essential
+        run: apt-get update && apt-get install -y build-essential
+      - name: Install Go
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: 'go.mod'
+          cache: true
+      - name: Run tests
+        run: go test -race -v ./...
+        env:
+          CGO_ENABLED: '1'
+
+  tests-done:
+    name: Tests passed
+    needs: [lint, test]
+    runs-on: ubuntu-latest
+    if: ${{ !cancelled() }}
+    steps:
+      - name: Check tests passed
+        run: |
+          echo "Checking job results..."
+          results='${{ toJSON(needs.*.result) }}'
+          echo "Job results: $results"
+          if echo "$results" | grep -qE '"(failure|cancelled)"'; then
+            echo "Some jobs failed or were cancelled"
+            exit 1
+          fi
+          echo "All tests passed!"

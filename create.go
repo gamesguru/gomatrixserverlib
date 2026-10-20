@@ -7,5 +7,5 @@ type FledglingEvent struct {
 	// The state_key of the event if the event is a state event or nil if the event is not a state event.
 	StateKey string `json:"state_key"`
 	// The JSON object for "content" key of the event.
-	Content interface{} `json:"content"`
+	Content any `json:"content"`
 }

@@ -3,23 +3,24 @@ package fclient
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
 
-	"github.com/matrix-org/gomatrix"
-	"github.com/matrix-org/gomatrixserverlib"
-	"github.com/matrix-org/gomatrixserverlib/spec"
 	"golang.org/x/crypto/ed25519"
+
+	"codefloe.com/pat-s/gomatrixserverlib"
+	"codefloe.com/pat-s/gomatrixserverlib/spec"
 )
 
 // an interface for gmsl.FederationClient - contains functions called by federationapi only.
 type FederationClient interface {
 	gomatrixserverlib.KeyClient
 
-	DoRequestAndParseResponse(ctx context.Context, req *http.Request, result interface{}) error
+	DoRequestAndParseResponse(ctx context.Context, req *http.Request, result any) error
 
 	SendTransaction(ctx context.Context, t gomatrixserverlib.Transaction) (res RespSend, err error)
 
@@ -71,7 +72,7 @@ type FederationClient interface {
 }
 
 // A FederationClient is a matrix federation client that adds
-// "Authorization: X-Matrix" headers to requests that need ed25519 signatures
+// "Authorization: X-Matrix" headers to requests that need ed25519 signatures.
 type federationClient struct {
 	Client
 	identities []*SigningIdentity
@@ -100,11 +101,11 @@ func NewFederationClient(
 	}
 }
 
-func (ac *federationClient) DoRequestAndParseResponse(ctx context.Context, req *http.Request, result interface{}) error {
+func (ac *federationClient) DoRequestAndParseResponse(ctx context.Context, req *http.Request, result any) error {
 	return ac.Client.DoRequestAndParseResponse(ctx, req, result)
 }
 
-func (ac *federationClient) doRequest(ctx context.Context, r FederationRequest, resBody interface{}) error {
+func (ac *federationClient) doRequest(ctx context.Context, r FederationRequest, resBody any) error {
 	var identity *SigningIdentity
 	for _, id := range ac.identities {
 		if id.ServerName == r.Origin() {
@@ -127,11 +128,13 @@ func (ac *federationClient) doRequest(ctx context.Context, r FederationRequest, 
 	return ac.Client.DoRequestAndParseResponse(ctx, req, resBody)
 }
 
-var federationPathPrefixV1 = "/_matrix/federation/v1"
-var federationPathPrefixV2 = "/_matrix/federation/v2"
-var federationPathPrefixV3 = "/_matrix/federation/v3"
+var (
+	federationPathPrefixV1 = "/_matrix/federation/v1"
+	federationPathPrefixV2 = "/_matrix/federation/v2"
+	federationPathPrefixV3 = "/_matrix/federation/v3"
+)
 
-// SendTransaction sends a transaction
+// SendTransaction sends a transaction.
 func (ac *federationClient) SendTransaction(
 	ctx context.Context, t gomatrixserverlib.Transaction,
 ) (res RespSend, err error) {
@@ -242,7 +245,7 @@ func (ac *federationClient) SendJoinPartialState(
 	return ac.sendJoin(ctx, origin, s, event, true)
 }
 
-// sendJoin is an internal implementation shared between SendJoin and SendJoinPartialState
+// sendJoin is an internal implementation shared between SendJoin and SendJoinPartialState.
 func (ac *federationClient) sendJoin(
 	ctx context.Context, origin, s spec.ServerName, event gomatrixserverlib.PDU, partialState bool,
 ) (res RespSendJoin, err error) {
@@ -258,7 +261,8 @@ func (ac *federationClient) sendJoin(
 		return
 	}
 	err = ac.doRequest(ctx, req, &res)
-	gerr, ok := err.(gomatrix.HTTPError)
+	var gerr spec.HTTPError
+	ok := errors.As(err, &gerr)
 	if ok && gerr.Code == 404 {
 		// fallback to v1 which returns [200, body]
 		v1path := federationPathPrefixV1 + "/send_join/" +
@@ -349,7 +353,8 @@ func (ac *federationClient) SendLeave(
 	}
 	res := struct{}{}
 	err = ac.doRequest(ctx, req, &res)
-	gerr, ok := err.(gomatrix.HTTPError)
+	var gerr spec.HTTPError
+	ok := errors.As(err, &gerr)
 	if ok && gerr.Code == 404 {
 		// fallback to v1 which returns [200, body]
 		v1path := federationPathPrefixV1 + "/send_leave/" +
@@ -399,7 +404,8 @@ func (ac *federationClient) SendInviteV2(
 	}
 	err = ac.doRequest(ctx, req, &res)
 
-	gerr, ok := err.(gomatrix.HTTPError)
+	var gerr spec.HTTPError
+	ok := errors.As(err, &gerr)
 	if ok && gerr.Code == 404 {
 		// fallback to v1 which returns [200, body]
 		var resp RespInvite
@@ -409,9 +415,7 @@ func (ac *federationClient) SendInviteV2(
 		}
 		// assume v1 as per spec: https://matrix.org/docs/spec/server_server/latest#put-matrix-federation-v1-invite-roomid-eventid
 		// Servers which receive a v1 invite request must assume that the room version is either "1" or "2".
-		res = RespInviteV2{ // nolint:gosimple
-			Event: resp.Event,
-		}
+		res = RespInviteV2(resp)
 	}
 	return
 }
@@ -497,7 +501,7 @@ func (ac *federationClient) LookupMissingEvents(
 	return
 }
 
-// Peek starts a peek on a remote server: see MSC2753
+// Peek starts a peek on a remote server: see MSC2753.
 func (ac *federationClient) Peek(
 	ctx context.Context, origin, s spec.ServerName, roomID, peekID string,
 	roomVersions []gomatrixserverlib.RoomVersion,
@@ -525,7 +529,7 @@ func (ac *federationClient) Peek(
 // LookupRoomAlias looks up a room alias hosted on the remote server.
 // The domain part of the roomAlias must match the name of the server it is
 // being looked up on.
-// If the room alias doesn't exist on the remote server then a 404 gomatrix.HTTPError
+// If the room alias doesn't exist on the remote server then a 404 spec.HTTPError
 // is returned.
 func (ac *federationClient) LookupRoomAlias(
 	ctx context.Context, origin, s spec.ServerName, roomAlias string,
@@ -547,12 +551,12 @@ func (ac *federationClient) GetPublicRooms(
 	return ac.GetPublicRoomsFiltered(ctx, origin, s, limit, since, "", includeAllNetworks, thirdPartyInstanceID)
 }
 
-// searchTerm is used when querying e.g. remote public rooms
+// searchTerm is used when querying e.g. remote public rooms.
 type searchTerm struct {
 	GenericSearchTerm string `json:"generic_search_term,omitempty"`
 }
 
-// postPublicRoomsReq is a request to /publicRooms
+// postPublicRoomsReq is a request to /publicRooms.
 type postPublicRoomsReq struct {
 	PublicRoomsFilter    searchTerm `json:"filter,omitempty"`
 	Limit                int        `json:"limit,omitempty"`
@@ -619,7 +623,7 @@ func (ac *federationClient) LookupProfile(
 func (ac *federationClient) ClaimKeys(ctx context.Context, origin, s spec.ServerName, oneTimeKeys map[string]map[string]string) (res RespClaimKeys, err error) {
 	path := federationPathPrefixV1 + "/user/keys/claim"
 	req := NewFederationRequest("POST", origin, s, path)
-	if err = req.SetContent(map[string]interface{}{
+	if err = req.SetContent(map[string]any{
 		"one_time_keys": oneTimeKeys,
 	}); err != nil {
 		return
@@ -731,7 +735,8 @@ func (ac *federationClient) RoomHierarchy(
 	req := NewFederationRequest("GET", origin, dst, path)
 	err = ac.doRequest(ctx, req, &res)
 	if err != nil {
-		gerr, ok := err.(gomatrix.HTTPError)
+		var gerr spec.HTTPError
+		ok := errors.As(err, &gerr)
 		if ok && gerr.Code == 404 {
 			// fallback to unstable endpoint
 			path = "/_matrix/federation/unstable/org.matrix.msc2946/hierarchy/" + url.PathEscape(roomID)

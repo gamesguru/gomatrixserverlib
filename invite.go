@@ -19,9 +19,10 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/matrix-org/gomatrixserverlib/spec"
-	"github.com/matrix-org/util"
 	"github.com/sirupsen/logrus"
+
+	"codefloe.com/pat-s/gomatrixserverlib/internal"
+	"codefloe.com/pat-s/gomatrixserverlib/spec"
 )
 
 type RoomQuerier interface {
@@ -47,6 +48,12 @@ type FederatedInviteClient interface {
 
 // InviteStrippedState is a cut-down set of fields from room state
 // events that allow the invited server to identify the room.
+//
+// Since MSC4311 (Matrix 1.16), invite and knock room state travels over
+// federation as full PDUs. An InviteStrippedState therefore also keeps the
+// full event JSON it was built from or received as, see PDUJSON. MarshalJSON
+// always emits the stripped form so that it is safe to hand to clients; use
+// FederationStrippedState to marshal the PDUs for federation.
 type InviteStrippedState struct {
 	fields struct {
 		Content  spec.RawJSON `json:"content"`
@@ -54,6 +61,7 @@ type InviteStrippedState struct {
 		Type     string       `json:"type"`
 		SenderID string       `json:"sender"`
 	}
+	pduJSON spec.RawJSON
 }
 
 // NewInviteStrippedState creates a stripped state event from a
@@ -63,17 +71,57 @@ func NewInviteStrippedState(event PDU) (ss InviteStrippedState) {
 	ss.fields.StateKey = event.StateKey()
 	ss.fields.Type = event.Type()
 	ss.fields.SenderID = string(event.SenderID())
+	ss.pduJSON = event.JSON()
 	return
 }
 
-// MarshalJSON implements json.Marshaller
+// MarshalJSON implements json.Marshaller.
+// It emits only the stripped state fields, never the full PDU.
 func (i InviteStrippedState) MarshalJSON() ([]byte, error) {
 	return json.Marshal(i.fields)
 }
 
-// UnmarshalJSON implements json.Unmarshaller
+// UnmarshalJSON implements json.Unmarshaller.
+// The raw entry is retained so that it can be validated as a PDU.
 func (i *InviteStrippedState) UnmarshalJSON(data []byte) error {
-	return json.Unmarshal(data, &i.fields)
+	if err := json.Unmarshal(data, &i.fields); err != nil {
+		return err
+	}
+	i.pduJSON = append(spec.RawJSON(nil), data...)
+	return nil
+}
+
+// PDUJSON returns the full event JSON this entry was built from or received
+// as. It is nil for entries which were not built from an event. Received
+// entries are untrusted until they pass ValidateStrippedStatePDUs.
+func (i *InviteStrippedState) PDUJSON() spec.RawJSON {
+	return i.pduJSON
+}
+
+// FederationStrippedState is the federation representation of
+// invite_room_state and knock_room_state. Entries are marshaled as full
+// PDUs when the event JSON is known, as MSC4311 requires, and as stripped
+// state otherwise.
+type FederationStrippedState []InviteStrippedState
+
+// MarshalJSON implements json.Marshaller.
+func (s FederationStrippedState) MarshalJSON() ([]byte, error) {
+	if s == nil {
+		return []byte("null"), nil
+	}
+	entries := make([]json.RawMessage, len(s))
+	for idx := range s {
+		if len(s[idx].pduJSON) > 0 {
+			entries[idx] = json.RawMessage(s[idx].pduJSON)
+			continue
+		}
+		stripped, err := json.Marshal(s[idx])
+		if err != nil {
+			return nil, err
+		}
+		entries[idx] = stripped
+	}
+	return json.Marshal(entries)
 }
 
 // Content returns the content of the stripped state.
@@ -130,9 +178,8 @@ func GenerateStrippedState(
 func abortIfAlreadyJoined(ctx context.Context, roomID spec.RoomID, invitedUser spec.SenderID, membershipQuerier MembershipQuerier) error {
 	membership, err := membershipQuerier.CurrentMembership(ctx, roomID, invitedUser)
 	if err != nil {
-		util.GetLogger(ctx).WithError(err).Error("failed getting user membership")
+		internal.GetLogger(ctx).WithError(err).Error("failed getting user membership")
 		return spec.InternalServerError{}
-
 	}
 	isAlreadyJoined := (membership == spec.Join)
 
@@ -163,15 +210,15 @@ func abortIfAlreadyJoined(ctx context.Context, roomID spec.RoomID, invitedUser s
 		//    room.
 		// For now we will implement option 2. Since in the abesence of a retry
 		// mechanism it will be equivalent to option 1, and we don't have a
-		// signalling mechanism to implement option 3.
-		util.GetLogger(ctx).Error("user is already joined to room")
+		// signaling mechanism to implement option 3.
+		internal.GetLogger(ctx).Error("user is already joined to room")
 		return spec.Forbidden("user is already joined to room")
 	}
 	return nil
 }
 
 func createInviteLogger(ctx context.Context, roomID spec.RoomID, inviter spec.UserID, invitee spec.UserID, eventID string) *logrus.Entry {
-	return util.GetLogger(ctx).WithFields(map[string]interface{}{
+	return internal.GetLogger(ctx).WithFields(map[string]any{
 		"inviter":  inviter.String(),
 		"invitee":  invitee.String(),
 		"room_id":  roomID.String(),
@@ -179,30 +226,24 @@ func createInviteLogger(ctx context.Context, roomID spec.RoomID, inviter spec.Us
 	})
 }
 
+// setUnsignedFieldForInvite stores the stripped state on an invite. It is
+// always a list, as clients expect, even when empty.
 func setUnsignedFieldForInvite(event PDU, inviteState []InviteStrippedState) error {
-	if len(inviteState) == 0 {
-		if err := event.SetUnsignedField("invite_room_state", struct{}{}); err != nil {
-			return fmt.Errorf("event.SetUnsignedField: %w", err)
-		}
-	} else {
-		if err := event.SetUnsignedField("invite_room_state", inviteState); err != nil {
-			return fmt.Errorf("event.SetUnsignedField: %w", err)
-		}
+	if inviteState == nil {
+		inviteState = []InviteStrippedState{}
 	}
-
+	if err := event.SetUnsignedField("invite_room_state", inviteState); err != nil {
+		return fmt.Errorf("event.SetUnsignedField: %w", err)
+	}
 	return nil
 }
 
 func setUnsignedFieldForProtoInvite(event *ProtoEvent, inviteState []InviteStrippedState) error {
-	if len(inviteState) == 0 {
-		if err := event.SetUnsigned(map[string]interface{}{"invite_room_state": struct{}{}}); err != nil {
-			return fmt.Errorf("event.SetUnsignedField: %w", err)
-		}
-	} else {
-		if err := event.SetUnsigned(map[string]interface{}{"invite_room_state": inviteState}); err != nil {
-			return fmt.Errorf("event.SetUnsignedField: %w", err)
-		}
+	if inviteState == nil {
+		inviteState = []InviteStrippedState{}
 	}
-
+	if err := event.SetUnsigned(map[string]any{"invite_room_state": inviteState}); err != nil {
+		return fmt.Errorf("event.SetUnsignedField: %w", err)
+	}
 	return nil
 }

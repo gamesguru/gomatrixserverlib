@@ -18,11 +18,12 @@ import (
 	"context"
 	"crypto/ed25519"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"slices"
 
-	"github.com/matrix-org/gomatrixserverlib/spec"
-	"github.com/matrix-org/util"
+	"codefloe.com/pat-s/gomatrixserverlib/internal"
+	"codefloe.com/pat-s/gomatrixserverlib/spec"
 )
 
 type HandleMakeJoinInput struct {
@@ -49,11 +50,11 @@ type HandleMakeJoinResponse struct {
 
 func HandleMakeJoin(input HandleMakeJoinInput) (*HandleMakeJoinResponse, error) {
 	if input.RoomQuerier == nil || input.UserIDQuerier == nil {
-		panic("Missing valid Querier")
+		return nil, fmt.Errorf("HandleMakeJoin: missing valid Querier")
 	}
 
 	if input.Context == nil {
-		panic("Missing valid Context")
+		return nil, fmt.Errorf("HandleMakeJoin: missing valid Context")
 	}
 
 	// Check that the room that the remote side is trying to join is actually
@@ -79,13 +80,16 @@ func HandleMakeJoin(input HandleMakeJoinInput) (*HandleMakeJoinResponse, error) 
 	// support restricted joins then this is effectively a no-op.
 	verImpl := MustGetRoomVersion(input.RoomVersion)
 	authorisedVia, err := verImpl.CheckRestrictedJoin(input.Context, input.LocalServerName, input.RoomQuerier, input.RoomID, input.SenderID)
-	switch e := err.(type) {
-	case nil:
-	case spec.MatrixError:
-		util.GetLogger(input.Context).WithError(err).Error("checkRestrictedJoin failed")
-		return nil, e
-	default:
-		return nil, spec.InternalServerError{Err: "checkRestrictedJoin failed"}
+	{
+		var e spec.MatrixError
+		switch {
+		case err == nil:
+		case errors.As(err, &e):
+			internal.GetLogger(input.Context).WithError(err).Error("checkRestrictedJoin failed")
+			return nil, e
+		default:
+			return nil, spec.InternalServerError{Err: "checkRestrictedJoin failed"}
+		}
 	}
 
 	// Try building an event for the server
@@ -161,7 +165,7 @@ func noCheckRestrictedJoin(context.Context, spec.ServerName, RestrictedRoomJoinQ
 // checkRestrictedJoin finds out whether or not we can assist in processing
 // a restricted room join. If the room version does not support restricted
 // joins then this function returns with no side effects. This returns:
-//   - a user ID of an authorising user, typically a user that has power to
+//   - a user ID of an authorizing user, typically a user that has power to
 //     issue invites in the room, if one has been found
 //   - an error if there was a problem finding out if this was allowable,
 //     like if the room version isn't known or a problem happened talking to
@@ -194,7 +198,7 @@ func checkRestrictedJoin(
 	}
 
 	// If the user is already invited to the room then the join is allowed
-	// but we don't specify an authorised via user, since the event auth
+	// but we don't specify an authorized via user, since the event auth
 	// will allow the join anyway.
 	if pending, err := roomQuerier.InvitePending(ctx, roomID, senderID); err != nil {
 		return "", fmt.Errorf("helpers.IsInvitePending: %w", err)
@@ -205,7 +209,7 @@ func checkRestrictedJoin(
 
 	// We need to get the power levels content so that we can determine which
 	// users in the room are entitled to issue invites. We need to use one of
-	// these users as the authorising user.
+	// these users as the authorizing user.
 	powerLevelsEvent, err := roomQuerier.CurrentStateEvent(ctx, roomID, spec.MRoomPowerLevels, "")
 	if err != nil {
 		return "", fmt.Errorf("roomQuerier.StateEvent(PL): %w", err)
@@ -230,7 +234,18 @@ func checkRestrictedJoin(
 		creators = CreatorsFromCreateEvent(createEvent)
 	}
 
+	// Get the locally joined users from the TARGET room. The authorizing user
+	// must be a member of this room per the Matrix spec (MSC3083).
+	targetRoomInfo, err := roomQuerier.RestrictedRoomJoinInfo(ctx, roomID, senderID, localServerName)
+	if err != nil {
+		return "", fmt.Errorf("roomQuerier.RestrictedRoomJoinInfo: %w", err)
+	}
+	if targetRoomInfo == nil || !targetRoomInfo.LocalServerInRoom {
+		return "", spec.UnableToAuthoriseJoin("This server is not joined to the target room.")
+	}
+
 	resident := true
+	userAllowed := false
 	// Step through the join rules and see if the user matches any of them.
 	for _, rule := range joinRules.Allow {
 		// We only understand "m.room_membership" rules at this point in
@@ -239,42 +254,43 @@ func checkRestrictedJoin(
 			continue
 		}
 
-		// See if the room exists. If it doesn't exist or if it's a stub
+		// See if the allowed room exists. If it doesn't exist or if it's a stub
 		// room entry then we can't check memberships.
-		roomID, err := spec.NewRoomID(rule.RoomID)
+		allowedRoomID, err := spec.NewRoomID(rule.RoomID)
 		if err != nil {
 			continue
 		}
 
-		// First of all work out if *we* are still in the room, otherwise
+		// First of all work out if *we* are still in the allowed room, otherwise
 		// it's possible that the memberships will be out of date.
-		targetRoomInfo, err := roomQuerier.RestrictedRoomJoinInfo(ctx, *roomID, senderID, localServerName)
-		if err != nil || targetRoomInfo == nil || !targetRoomInfo.LocalServerInRoom {
-			// If we aren't in the room, we can no longer tell if the room
+		allowedRoomInfo, err := roomQuerier.RestrictedRoomJoinInfo(ctx, *allowedRoomID, senderID, localServerName)
+		if err != nil || allowedRoomInfo == nil || !allowedRoomInfo.LocalServerInRoom {
+			// If we aren't in the allowed room, we can no longer tell if the room
 			// memberships are up-to-date.
 			resident = false
 			continue
 		}
 
-		// At this point we're happy that we are in the room, so now let's
-		// see if the target user is in the room.
-		// If the user is not in the room then we will skip this rule.
-		if !targetRoomInfo.UserJoinedToRoom {
+		// At this point we're happy that we are in the allowed room, so now let's
+		// see if the joining user is in the allowed room.
+		// If the user is not in the allowed room then we will skip this rule.
+		if !allowedRoomInfo.UserJoinedToRoom {
+			continue
+		}
+		userAllowed = true
+
+		// The joining user is in the allowed room, so now we will need to authorize
+		// the join using the user ID of one of our own users in the TARGET room
+		// (not the allowed room). The authorizing user must be a member of the
+		// target room per the Matrix spec.
+		if len(targetRoomInfo.JoinedUsers) == 0 {
+			// There should always be at least one join event at this point
+			// because we are gated behind LocalServerInRoom check above.
 			continue
 		}
 
-		// The user is in the room, so now we will need to authorise the
-		// join using the user ID of one of our own users in the room. Pick
-		// one.
-		if err != nil || len(targetRoomInfo.JoinedUsers) == 0 {
-			// There should always be more than one join event at this point
-			// because we are gated behind GetLocalServerInRoom, but y'know,
-			// sometimes strange things happen.
-			continue
-		}
-
-		// For each of the joined users, let's see if we can get a valid
-		// membership event.
+		// For each of the joined users in the TARGET room, let's see if we can
+		// get a valid membership event.
 		for _, memberEvent := range targetRoomInfo.JoinedUsers {
 			if memberEvent.Type() != spec.MRoomMember || memberEvent.StateKey() == nil {
 				continue // shouldn't happen
@@ -292,10 +308,16 @@ func checkRestrictedJoin(
 			// The join rules restrict membership, our server is in the relevant
 			// rooms and the user was allowed to join because they belong to one
 			// of the allowed rooms. Return one of our own local users
-			// from within the room to use as the authorising user ID, so that it
-			// can be referred to from within the membership content.
+			// from within the TARGET room to use as the authorizing user ID, so
+			// that it can be referred to from within the membership content.
 			return userID, nil
 		}
+	}
+
+	if userAllowed {
+		// The user may join, but none of our users in the room has the power
+		// to invite, so another resident server has to authorize the join.
+		return "", spec.UnableToAuthoriseJoin("No user on this server can authorize the join.")
 	}
 
 	if !resident {
@@ -304,7 +326,7 @@ func checkRestrictedJoin(
 		// whether or not to allow the user to join. This error code should
 		// tell the joining server to try joining via another resident server
 		// instead.
-		return "", spec.UnableToAuthoriseJoin("This server cannot authorise the join.")
+		return "", spec.UnableToAuthoriseJoin("This server cannot authorize the join.")
 	}
 
 	// The join rules restrict membership, our server is in the relevant
@@ -334,22 +356,22 @@ type HandleSendJoinResponse struct {
 	JoinEvent     PDU
 }
 
-// nolint: gocyclo
+//nolint:gocyclo
 func HandleSendJoin(input HandleSendJoinInput) (*HandleSendJoinResponse, error) {
 	if input.Verifier == nil {
-		panic("Missing valid JSONVerifier")
+		return nil, fmt.Errorf("HandleSendJoin: missing valid JSONVerifier")
 	}
 	if input.MembershipQuerier == nil {
-		panic("Missing valid StateQuerier")
+		return nil, fmt.Errorf("HandleSendJoin: missing valid StateQuerier")
 	}
 	if input.UserIDQuerier == nil {
-		panic("Missing valid UserIDQuerier")
+		return nil, fmt.Errorf("HandleSendJoin: missing valid UserIDQuerier")
 	}
 	if input.Context == nil {
-		panic("Missing valid Context")
+		return nil, fmt.Errorf("HandleSendJoin: missing valid Context")
 	}
 	if input.StoreSenderIDFromPublicID == nil {
-		panic("Missing valid StoreSenderID")
+		return nil, fmt.Errorf("HandleSendJoin: missing valid StoreSenderID")
 	}
 
 	verImpl, err := GetRoomVersion(input.RoomVersion)
@@ -437,7 +459,7 @@ func HandleSendJoin(input HandleSendJoinInput) (*HandleSendJoinResponse, error) 
 	// Check that the event is signed by the server sending the request.
 	redacted, err := verImpl.RedactEventJSON(event.JSON())
 	if err != nil {
-		util.GetLogger(input.Context).WithError(err).Error("RedactEventJSON failed")
+		internal.GetLogger(input.Context).WithError(err).Error("RedactEventJSON failed")
 		return nil, spec.BadJSON("The event JSON could not be redacted")
 	}
 
@@ -449,7 +471,7 @@ func HandleSendJoin(input HandleSendJoinInput) (*HandleSendJoinResponse, error) 
 	}}
 	verifyResults, err := input.Verifier.VerifyJSONs(input.Context, verifyRequests)
 	if err != nil {
-		util.GetLogger(input.Context).WithError(err).Error("keys.VerifyJSONs failed")
+		internal.GetLogger(input.Context).WithError(err).Error("keys.VerifyJSONs failed")
 		return nil, spec.InternalServerError{}
 	}
 	if verifyResults[0].Error != nil {
@@ -480,17 +502,17 @@ func HandleSendJoin(input HandleSendJoinInput) (*HandleSendJoinResponse, error) 
 	if memberContent.AuthorisedVia != "" {
 		authorisedVia, err := spec.NewUserID(memberContent.AuthorisedVia, true)
 		if err != nil {
-			util.GetLogger(input.Context).WithError(err).Errorf("The authorising username %q is invalid.", memberContent.AuthorisedVia)
-			return nil, spec.BadJSON(fmt.Sprintf("The authorising username %q is invalid.", memberContent.AuthorisedVia))
+			internal.GetLogger(input.Context).WithError(err).Errorf("The authorizing username %q is invalid.", memberContent.AuthorisedVia)
+			return nil, spec.BadJSON(fmt.Sprintf("The authorizing username %q is invalid.", memberContent.AuthorisedVia))
 		}
 		if authorisedVia.Domain() != input.LocalServerName {
-			util.GetLogger(input.Context).Errorf("The authorising username %q does not belong to this server.", authorisedVia.String())
-			return nil, spec.BadJSON(fmt.Sprintf("The authorising username %q does not belong to this server.", authorisedVia.String()))
+			internal.GetLogger(input.Context).Errorf("The authorizing username %q does not belong to this server.", authorisedVia.String())
+			return nil, spec.BadJSON(fmt.Sprintf("The authorizing username %q does not belong to this server.", authorisedVia.String()))
 		}
 	}
 
 	// Sign the membership event. This is required for restricted joins to work
-	// in the case that the authorised via user is one of our own users. It also
+	// in the case that the authorized via user is one of our own users. It also
 	// doesn't hurt to do it even if it isn't a restricted join.
 	signed := event.Sign(
 		string(input.LocalServerName),

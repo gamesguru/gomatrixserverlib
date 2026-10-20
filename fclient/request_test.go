@@ -9,9 +9,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/matrix-org/gomatrixserverlib"
-	"github.com/matrix-org/gomatrixserverlib/spec"
 	"golang.org/x/crypto/ed25519"
+
+	"codefloe.com/pat-s/gomatrixserverlib"
+	"codefloe.com/pat-s/gomatrixserverlib/spec"
 )
 
 // This GET request is taken from a request made by a synapse run by sytest.
@@ -171,8 +172,10 @@ func TestVerifyPutRequest(t *testing.T) {
 	}
 }
 
-var privateKeySeed1 = `QJvXAPj0D9MUb1exkD8pIWmCvT1xajlsB8jRYz/G5HE`
-var privateKey1 = mustLoadPrivateKey(privateKeySeed1)
+var (
+	privateKeySeed1 = `QJvXAPj0D9MUb1exkD8pIWmCvT1xajlsB8jRYz/G5HE`
+	privateKey1     = mustLoadPrivateKey(privateKeySeed1)
+)
 
 func mustLoadPrivateKey(seed string) ed25519.PrivateKey {
 	seedBytes, err := base64.RawStdEncoding.DecodeString(seed)

@@ -7,11 +7,7 @@ import (
 	"time"
 )
 
-var dnsResolverHits chan string
-
-func init() {
-	dnsResolverHits = make(chan string, 1)
-}
+var dnsResolverHits = make(chan string, 1)
 
 type dummyNetResolver struct{}
 

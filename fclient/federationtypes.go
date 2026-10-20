@@ -6,12 +6,13 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/matrix-org/gomatrixserverlib"
-	"github.com/matrix-org/gomatrixserverlib/spec"
 	"github.com/tidwall/gjson"
+
+	"codefloe.com/pat-s/gomatrixserverlib"
+	"codefloe.com/pat-s/gomatrixserverlib/spec"
 )
 
-// A RespSend is the content of a response to PUT /_matrix/federation/v1/send/{txnID}/
+// A RespSend is the content of a response to PUT /_matrix/federation/v1/send/{txnID}/.
 type RespSend struct {
 	// Map of event ID to the result of processing that event.
 	PDUs map[string]PDUResult `json:"pdus"`
@@ -24,7 +25,7 @@ type PDUResult struct {
 	Error string `json:"error,omitempty"`
 }
 
-// A RespStateIDs is the content of a response to GET /_matrix/federation/v1/state_ids/{roomID}/{eventID}
+// A RespStateIDs is the content of a response to GET /_matrix/federation/v1/state_ids/{roomID}/{eventID}.
 type RespStateIDs struct {
 	// A list of state event IDs for the state of the room before the requested event.
 	StateEventIDs []string `json:"pdu_ids"`
@@ -40,7 +41,7 @@ func (r RespStateIDs) GetAuthEventIDs() []string {
 	return r.AuthEventIDs
 }
 
-// A RespState is the content of a response to GET /_matrix/federation/v1/state/{roomID}/{eventID}
+// A RespState is the content of a response to GET /_matrix/federation/v1/state/{roomID}/{eventID}.
 type RespState struct {
 	// A list of events giving the state of the room before the request event.
 	StateEvents gomatrixserverlib.EventJSONs `json:"pdus"`
@@ -56,7 +57,7 @@ func (r *RespState) GetAuthEvents() gomatrixserverlib.EventJSONs {
 	return r.AuthEvents
 }
 
-// A RespPeek is the content of a response to GET /_matrix/federation/v1/peek/{roomID}/{peekID}
+// A RespPeek is the content of a response to GET /_matrix/federation/v1/peek/{roomID}/{peekID}.
 type RespPeek struct {
 	// How often should we renew the peek?
 	RenewalInterval int64 `json:"renewal_interval"`
@@ -69,6 +70,44 @@ type RespPeek struct {
 	// The ID of the event whose state snapshot this is - i.e. the
 	// most recent forward extremity in the room.
 	LatestEvent gomatrixserverlib.PDU `json:"latest_event"`
+}
+
+// UnmarshalJSON implements json.Unmarshaller. The latest event is an
+// interface whose format depends on the room version, so it can only be
+// parsed once the room version in the same response is known. A response
+// without a room version is treated as room version 1.
+func (r *RespPeek) UnmarshalJSON(data []byte) error {
+	var fields struct {
+		RenewalInterval int64                         `json:"renewal_interval"`
+		StateEvents     gomatrixserverlib.EventJSONs  `json:"state"`
+		AuthEvents      gomatrixserverlib.EventJSONs  `json:"auth_chain"`
+		RoomVersion     gomatrixserverlib.RoomVersion `json:"room_version"`
+		LatestEvent     spec.RawJSON                  `json:"latest_event"`
+	}
+	if err := json.Unmarshal(data, &fields); err != nil {
+		return err
+	}
+	*r = RespPeek{
+		RenewalInterval: fields.RenewalInterval,
+		StateEvents:     fields.StateEvents,
+		AuthEvents:      fields.AuthEvents,
+		RoomVersion:     fields.RoomVersion,
+	}
+	if len(fields.LatestEvent) == 0 || string(fields.LatestEvent) == "null" {
+		return nil
+	}
+	roomVersion := fields.RoomVersion
+	if roomVersion == "" {
+		roomVersion = gomatrixserverlib.RoomVersionV1
+	}
+	verImpl, err := gomatrixserverlib.GetRoomVersion(roomVersion)
+	if err != nil {
+		return fmt.Errorf("gomatrixserverlib: peek response has an unsupported room version: %w", err)
+	}
+	if r.LatestEvent, err = verImpl.NewEventFromUntrustedJSON(fields.LatestEvent); err != nil {
+		return fmt.Errorf("gomatrixserverlib: peek response has an invalid latest_event: %w", err)
+	}
+	return nil
 }
 
 func (r *RespPeek) GetStateEvents() gomatrixserverlib.EventJSONs {
@@ -94,13 +133,13 @@ type MissingEvents struct {
 	StateDAG bool `json:"org.matrix.msc4242.state_dag"`
 }
 
-// A RespMissingEvents is the content of a response to GET /_matrix/federation/v1/get_missing_events/{roomID}
+// A RespMissingEvents is the content of a response to GET /_matrix/federation/v1/get_missing_events/{roomID}.
 type RespMissingEvents struct {
 	// The returned set of missing events.
 	Events gomatrixserverlib.EventJSONs `json:"events"`
 }
 
-// RespPublicRooms is the content of a response to GET /_matrix/federation/v1/publicRooms
+// RespPublicRooms is the content of a response to GET /_matrix/federation/v1/publicRooms.
 type RespPublicRooms struct {
 	// A paginated chunk of public rooms.
 	Chunk []PublicRoom `json:"chunk"`
@@ -113,7 +152,7 @@ type RespPublicRooms struct {
 }
 
 // PublicRoom stores the info of a room returned by
-// GET /_matrix/federation/v1/publicRooms
+// GET /_matrix/federation/v1/publicRooms.
 type PublicRoom struct {
 	// The canonical alias of the room, if any.
 	CanonicalAlias string `json:"canonical_alias,omitempty"`
@@ -135,9 +174,15 @@ type PublicRoom struct {
 	JoinRule string `json:"join_rule,omitempty"`
 	// The type of the room.
 	RoomType string `json:"room_type,omitempty"`
+	// The encryption algorithm used in the room, if encrypted (MSC3266).
+	// Uses unstable prefix until MSC3266 is merged.
+	Encryption string `json:"im.nheko.summary.encryption,omitempty"`
+	// The room version (MSC3266).
+	// Uses unstable prefix until MSC3266 is merged.
+	RoomVersion string `json:"im.nheko.summary.room_version,omitempty"`
 }
 
-// A RespEventAuth is the content of a response to GET /_matrix/federation/v1/event_auth/{roomID}/{eventID}
+// A RespEventAuth is the content of a response to GET /_matrix/federation/v1/event_auth/{roomID}/{eventID}.
 type RespEventAuth struct {
 	// A list of events needed to authenticate the state events.
 	AuthEvents gomatrixserverlib.EventJSONs `json:"auth_chain"`
@@ -158,8 +203,7 @@ type RespUserDevices struct {
 	SelfSigningKey *CrossSigningKey `json:"self_signing_key"`
 }
 
-type EmptyResp struct {
-}
+type EmptyResp struct{}
 
 // UnmarshalJSON is used here because people on Synapses can apparently upload
 // nonsense into their device keys in types that don't match the expected and
@@ -211,7 +255,7 @@ type RespUserDeviceKeys struct {
 	Signatures map[string]map[gomatrixserverlib.KeyID]spec.Base64Bytes `json:"signatures"`
 }
 
-// MarshalJSON implements json.Marshaller
+// MarshalJSON implements json.Marshaller.
 func (r RespPeek) MarshalJSON() ([]byte, error) {
 	if len(r.StateEvents) == 0 {
 		r.StateEvents = gomatrixserverlib.EventJSONs{}
@@ -234,7 +278,7 @@ func (r RespPeek) MarshalJSON() ([]byte, error) {
 	})
 }
 
-// MarshalJSON implements json.Marshaller
+// MarshalJSON implements json.Marshaller.
 func (r RespState) MarshalJSON() ([]byte, error) {
 	if len(r.StateEvents) == 0 {
 		r.StateEvents = gomatrixserverlib.EventJSONs{}
@@ -242,13 +286,10 @@ func (r RespState) MarshalJSON() ([]byte, error) {
 	if len(r.AuthEvents) == 0 {
 		r.AuthEvents = gomatrixserverlib.EventJSONs{}
 	}
-	return json.Marshal(respStateFields{ // nolint:gosimple
-		StateEvents: r.StateEvents,
-		AuthEvents:  r.AuthEvents,
-	})
+	return json.Marshal(respStateFields(r))
 }
 
-// A RespMakeJoin is the content of a response to GET /_matrix/federation/v2/make_join/{roomID}/{userID}
+// A RespMakeJoin is the content of a response to GET /_matrix/federation/v2/make_join/{roomID}/{userID}.
 type RespMakeJoin struct {
 	// An incomplete m.room.member event for a user on the requesting server
 	// generated by the responding server.
@@ -265,7 +306,7 @@ func (r *RespMakeJoin) GetRoomVersion() gomatrixserverlib.RoomVersion {
 	return r.RoomVersion
 }
 
-// A RespSendJoin is the content of a response to PUT /_matrix/federation/v2/send_join/{roomID}/{eventID}
+// A RespSendJoin is the content of a response to PUT /_matrix/federation/v2/send_join/{roomID}/{eventID}.
 type RespSendJoin struct {
 	// A list of events giving the state of the room before the request event.
 	StateEvents gomatrixserverlib.EventJSONs `json:"state"`
@@ -308,7 +349,7 @@ func (r *RespSendJoin) GetServersInRoom() []string {
 	return r.ServersInRoom
 }
 
-// MarshalJSON implements json.Marshaller
+// MarshalJSON implements json.Marshaller.
 func (r RespSendJoin) MarshalJSON() ([]byte, error) {
 	fields := respSendJoinFields{
 		StateEvents: r.StateEvents,
@@ -338,13 +379,16 @@ func (r RespSendJoin) MarshalJSON() ([]byte, error) {
 	return json.Marshal(partialJoinFields)
 }
 
-// A RespSendKnock is the content of a response to PUT /_matrix/federation/v2/send_knock/{roomID}/{eventID}
+// A RespSendKnock is the content of a response to PUT /_matrix/federation/v2/send_knock/{roomID}/{eventID}.
 type RespSendKnock struct {
-	// A list of stripped state events to help the initiator of the knock identify the room.
-	KnockRoomState []gomatrixserverlib.InviteStrippedState `json:"knock_room_state"`
+	// A list of state events to help the initiator of the knock identify the room.
+	// Since MSC4311 these are full PDUs including the m.room.create event. The
+	// knocking server should drop entries which fail
+	// gomatrixserverlib.ValidateStrippedStatePDUs before passing them to clients.
+	KnockRoomState gomatrixserverlib.FederationStrippedState `json:"knock_room_state"`
 }
 
-// A RespMakeKnock is the content of a response to GET /_matrix/federation/v2/make_knock/{roomID}/{userID}
+// A RespMakeKnock is the content of a response to GET /_matrix/federation/v2/make_knock/{roomID}/{userID}.
 type RespMakeKnock struct {
 	// An incomplete m.room.member event for a user on the requesting server
 	// generated by the responding server.
@@ -353,7 +397,7 @@ type RespMakeKnock struct {
 	RoomVersion gomatrixserverlib.RoomVersion `json:"room_version"`
 }
 
-// respSendJoinFields is an intermediate struct used in RespSendJoin.MarshalJSON
+// respSendJoinFields is an intermediate struct used in RespSendJoin.MarshalJSON.
 type respSendJoinFields struct {
 	StateEvents gomatrixserverlib.EventJSONs `json:"state"`
 	AuthEvents  gomatrixserverlib.EventJSONs `json:"auth_chain"`
@@ -370,7 +414,7 @@ type respSendJoinPartialStateFields struct {
 	ServersInRoom  []string `json:"servers_in_room"`
 }
 
-// A RespMakeLeave is the content of a response to GET /_matrix/federation/v2/make_leave/{roomID}/{userID}
+// A RespMakeLeave is the content of a response to GET /_matrix/federation/v2/make_leave/{roomID}/{userID}.
 type RespMakeLeave struct {
 	// An incomplete m.room.member event for a user on the requesting server
 	// generated by the responding server.
@@ -392,34 +436,34 @@ type RespDirectory struct {
 	Servers []spec.ServerName `json:"servers"`
 }
 
-// RespProfile is the content of a response to GET /_matrix/federation/v1/query/profile
+// RespProfile is the content of a response to GET /_matrix/federation/v1/query/profile.
 type RespProfile struct {
 	DisplayName string `json:"displayname,omitempty"`
 	AvatarURL   string `json:"avatar_url,omitempty"`
 }
 
-// RespInvite is the content of a response to PUT /_matrix/federation/v1/invite/{roomID}/{eventID}
+// RespInvite is the content of a response to PUT /_matrix/federation/v1/invite/{roomID}/{eventID}.
 type RespInvite struct {
 	// The invite event signed by recipient server.
 	Event spec.RawJSON `json:"event"`
 }
 
-// MarshalJSON implements json.Marshaller
+// MarshalJSON implements json.Marshaller.
 func (r RespInvite) MarshalJSON() ([]byte, error) {
 	// The wire format of a RespInvite is slightly is sent as the second element
 	// of a two element list where the first element is the constant integer 200.
 	// (This protocol oddity is the result of a typo in the synapse matrix
 	//  server, and is preserved to maintain compatibility.)
-	return json.Marshal([]interface{}{200, respInviteFields(r)})
+	return json.Marshal([]any{200, respInviteFields(r)})
 }
 
-// UnmarshalJSON implements json.Unmarshaller
+// UnmarshalJSON implements json.Unmarshaller.
 func (r *RespInvite) UnmarshalJSON(data []byte) error {
 	var tuple gomatrixserverlib.EventJSONs
 	if err := json.Unmarshal(data, &tuple); err != nil {
 		return err
 	}
-	if len(tuple) != 2 {
+	if len(tuple) != 2 { //nolint:mnd
 		return fmt.Errorf("gomatrixserverlib: invalid invite response, invalid length: %d != 2", len(tuple))
 	}
 	if jr := gjson.GetBytes(tuple[1], "event"); jr.Exists() {
@@ -432,7 +476,7 @@ type respInviteFields struct {
 	Event spec.RawJSON `json:"event"`
 }
 
-// RespInvite is the content of a response to PUT /_matrix/federation/v2/invite/{roomID}/{eventID}
+// RespInvite is the content of a response to PUT /_matrix/federation/v2/invite/{roomID}/{eventID}.
 type RespInviteV2 struct {
 	// The invite event signed by recipient server.
 	Event spec.RawJSON `json:"event"`
@@ -457,12 +501,12 @@ type DeviceKeys struct {
 	RespUserDeviceKeys
 	// Additional data added to the device key information by intermediate servers, and not covered by the signatures.
 	// E.g { "device_display_name": "Alice's mobile phone" }
-	Unsigned map[string]interface{} `json:"unsigned"`
+	Unsigned map[string]any `json:"unsigned"`
 }
 
 func (s *DeviceKeys) isCrossSigningBody() {} // implements CrossSigningBody
 
-func (s *DeviceKeys) Scan(src interface{}) error {
+func (s *DeviceKeys) Scan(src any) error {
 	switch v := src.(type) {
 	case string:
 		return json.Unmarshal([]byte(v), s)
@@ -491,7 +535,6 @@ type Version struct {
 
 // MSC2836EventRelationshipsRequest is a request to /event_relationships from
 // https://github.com/matrix-org/matrix-doc/blob/kegan/msc/threading/proposals/2836-threading.md
-// nolint:maligned
 type MSC2836EventRelationshipsRequest struct {
 	EventID         string `json:"event_id"`
 	MaxDepth        int    `json:"max_depth"`
@@ -538,12 +581,12 @@ type MSC2836EventRelationshipsResponse struct {
 	AuthChain gomatrixserverlib.EventJSONs `json:"auth_chain"`
 }
 
-// RoomHierarchyRoom represents a public room with additional metadata on the space directory
+// RoomHierarchyRoom represents a public room with additional metadata on the space directory.
 type RoomHierarchyRoom struct {
 	PublicRoom
 	ChildrenState  []RoomHierarchyStrippedEvent `json:"children_state"`
 	AllowedRoomIDs []string                     `json:"allowed_room_ids,omitempty"`
-	RoomType       string                       `json:"room_type"`
+	RoomType       *string                      `json:"room_type,omitempty"`
 }
 
 // RoomHierarchyResponse is the HTTP response body for the federation /unstable/spaces/{roomID} endpoint
@@ -554,7 +597,7 @@ type RoomHierarchyResponse struct {
 	InaccessibleChildren []string            `json:"inaccessible_children"`
 }
 
-// RoomHierarchyStrippedEvent is the format of events returned in the HTTP response body
+// RoomHierarchyStrippedEvent is the format of events returned in the HTTP response body.
 type RoomHierarchyStrippedEvent struct {
 	Type           string          `json:"type"`
 	StateKey       string          `json:"state_key"`

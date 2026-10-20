@@ -6,24 +6,26 @@ import (
 	"strings"
 )
 
-const userSigil = '@'
-const localDomainSeparator = ':'
+const (
+	userSigil            = '@'
+	localDomainSeparator = ':'
+)
 
 var validUsernameRegex = regexp.MustCompile(`^[0-9a-z_\-=./]+$`)
 
-// A UserID identifies a matrix user as per the matrix specification
+// A UserID identifies a matrix user as per the matrix specification.
 type UserID struct {
 	raw    string
 	local  string
 	domain string
 }
 
-// Creates a new UserID, returning an error if invalid
+// Creates a new UserID, returning an error if invalid.
 func NewUserID(id string, allowHistoricalIDs bool) (*UserID, error) {
 	return parseAndValidateUserID(id, allowHistoricalIDs)
 }
 
-// Creates a new UserID, panicing if invalid
+// Creates a new UserID, panicing if invalid.
 func NewUserIDOrPanic(id string, allowHistoricalIDs bool) UserID {
 	userID, err := parseAndValidateUserID(id, allowHistoricalIDs)
 	if err != nil {
@@ -32,17 +34,17 @@ func NewUserIDOrPanic(id string, allowHistoricalIDs bool) UserID {
 	return *userID
 }
 
-// Returns the full userID string including leading sigil
+// Returns the full userID string including leading sigil.
 func (user *UserID) String() string {
 	return user.raw
 }
 
-// Returns just the localpart of the userID
+// Returns just the localpart of the userID.
 func (user *UserID) Local() string {
 	return user.local
 }
 
-// Returns just the domain of the userID
+// Returns just the domain of the userID.
 func (user *UserID) Domain() ServerName {
 	return ServerName(user.domain)
 }

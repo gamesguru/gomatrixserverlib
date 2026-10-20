@@ -2,9 +2,10 @@ package gomatrixserverlib
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
-	"github.com/matrix-org/gomatrixserverlib/spec"
+	"codefloe.com/pat-s/gomatrixserverlib/spec"
 )
 
 // BackfillClient contains the necessary functions from the federation client to perform a backfill request
@@ -48,8 +49,8 @@ type BackfillRequester interface {
 //
 // TODO: When does it make sense to return errors?
 func RequestBackfill(ctx context.Context, origin spec.ServerName, b BackfillRequester, keyRing JSONVerifier,
-	roomID string, ver RoomVersion, fromEventIDs []string, limit int, userIDForSender spec.UserIDForSender) ([]PDU, error) {
-
+	roomID string, ver RoomVersion, fromEventIDs []string, limit int, userIDForSender spec.UserIDForSender,
+) ([]PDU, error) {
 	if len(fromEventIDs) == 0 {
 		return nil, nil
 	}
@@ -67,7 +68,7 @@ func RequestBackfill(ctx context.Context, origin spec.ServerName, b BackfillRequ
 			break
 		}
 		if ctx.Err() != nil {
-			return nil, fmt.Errorf("gomatrixserverlib: RequestBackfill context cancelled %w", ctx.Err())
+			return nil, fmt.Errorf("gomatrixserverlib: RequestBackfill context canceled %w", ctx.Err())
 		}
 		// fetch some events, and try a different server if it fails
 		txn, err := b.Backfill(ctx, origin, s, roomID, limit, fromEventIDs)
@@ -82,14 +83,17 @@ func RequestBackfill(ctx context.Context, origin spec.ServerName, b BackfillRequ
 			continue // try the next server
 		}
 		for _, res := range loadResults {
-			switch res.Error.(type) {
-			case nil, SignatureErr:
-				// The signature of the event might not be valid anymore, for example if
-				// the key ID was reused with a different signature.
-			case AuthChainErr, AuthRulesErr:
-				continue
-			default:
-				continue
+			{
+				var errCase0 SignatureErr
+				var errCase1 AuthChainErr
+				var errCase2 AuthRulesErr
+				switch {
+				case res.Error == nil, errors.As(res.Error, &errCase0):
+				case errors.As(res.Error, &errCase1), errors.As(res.Error, &errCase2):
+					continue
+				default:
+					continue
+				}
 			}
 			if haveEventIDs[res.Event.EventID()] {
 				continue // we got this event from a different server
@@ -105,14 +109,14 @@ func RequestBackfill(ctx context.Context, origin spec.ServerName, b BackfillRequ
 
 /*
 // BackfillResponder contains the necessary functions to handle backfill requests.
-type backfillResponder interface {
+Type backfillResponder interface {
 	// TODO, unexported for now.
 }
 
 // ReceiveBackfill implements the server logic for processing backfill requests sent by a server.
 // This handles event selection via breadth-first search, as well as history visibility rules depending
 // on the state of the room at that point in time.
-func receiveBackfill(b backfillResponder, roomID string, fromEventIDs []string, limit int) (*Transaction, error) {
+Func receiveBackfill(b backfillResponder, roomID string, fromEventIDs []string, limit int) (*Transaction, error) {
 	return nil, nil // TODO, unexported for now.
-}
+}.
 */

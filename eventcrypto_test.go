@@ -32,7 +32,7 @@ func TestVerifyEventSignatureTestVectors(t *testing.T) {
 		t.Fatal(err)
 	}
 	random := bytes.NewBuffer(seed)
-	entityName := "domain" // nolint:goconst
+	entityName := "domain" //nolint:goconst
 	keyID := KeyID("ed25519:1")
 
 	publicKey, _, err := ed25519.GenerateKey(random)

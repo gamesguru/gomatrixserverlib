@@ -20,7 +20,7 @@ import (
 	"encoding/json"
 	"testing"
 
-	"gopkg.in/yaml.v2"
+	"github.com/goccy/go-yaml"
 )
 
 func TestMarshalBase64(t *testing.T) {
@@ -37,7 +37,7 @@ func TestMarshalBase64(t *testing.T) {
 
 func TestUnmarshalBase64(t *testing.T) {
 	input := []byte(`"dGhpc/9pc/9h/3Rlc3Q"`)
-	want := "this\xffis\xffa\xfftest" // nolint:goconst
+	want := "this\xffis\xffa\xfftest" //nolint:goconst
 	var got Base64Bytes
 	err := json.Unmarshal(input, &got)
 	if err != nil {

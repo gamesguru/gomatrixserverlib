@@ -6,9 +6,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/matrix-org/gomatrixserverlib/spec"
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/crypto/ed25519"
+
+	"codefloe.com/pat-s/gomatrixserverlib/spec"
 )
 
 func TestHandleMakeLeave(t *testing.T) {
@@ -31,8 +32,8 @@ func TestHandleMakeLeave(t *testing.T) {
 		RoomID:     validRoom.String(),
 		Type:       spec.MRoomCreate,
 		StateKey:   &stateKey,
-		PrevEvents: []interface{}{},
-		AuthEvents: []interface{}{},
+		PrevEvents: []any{},
+		AuthEvents: []any{},
 		Depth:      0,
 		Content:    spec.RawJSON(`{"creator":"@user:local","m.federate":true,"room_version":"10"}`),
 		Unsigned:   spec.RawJSON(""),
@@ -48,8 +49,8 @@ func TestHandleMakeLeave(t *testing.T) {
 		RoomID:     validRoom.String(),
 		Type:       spec.MRoomJoinRules,
 		StateKey:   &stateKey,
-		PrevEvents: []interface{}{createEvent.EventID()},
-		AuthEvents: []interface{}{createEvent.EventID()},
+		PrevEvents: []any{createEvent.EventID()},
+		AuthEvents: []any{createEvent.EventID()},
 		Depth:      1,
 		Content:    spec.RawJSON(`{"join_rule":"public"}`),
 		Unsigned:   spec.RawJSON(""),
@@ -65,8 +66,8 @@ func TestHandleMakeLeave(t *testing.T) {
 		RoomID:     validRoom.String(),
 		Type:       spec.MRoomJoinRules,
 		StateKey:   &stateKey,
-		PrevEvents: []interface{}{createEvent.EventID()},
-		AuthEvents: []interface{}{createEvent.EventID()},
+		PrevEvents: []any{createEvent.EventID()},
+		AuthEvents: []any{createEvent.EventID()},
 		Depth:      2,
 		Content:    spec.RawJSON(`{"users":{"@joined:local":100}}`),
 		Unsigned:   spec.RawJSON(""),
@@ -82,8 +83,8 @@ func TestHandleMakeLeave(t *testing.T) {
 		RoomID:     validRoom.String(),
 		Type:       spec.MRoomMember,
 		StateKey:   &stateKey,
-		PrevEvents: []interface{}{powerLevelsEvent.EventID()},
-		AuthEvents: []interface{}{createEvent.EventID(), joinRulesEvent.EventID(), powerLevelsEvent.EventID()},
+		PrevEvents: []any{powerLevelsEvent.EventID()},
+		AuthEvents: []any{createEvent.EventID(), joinRulesEvent.EventID(), powerLevelsEvent.EventID()},
 		Depth:      3,
 		Content:    spec.RawJSON(`{"membership":"join"}`),
 		Unsigned:   spec.RawJSON(""),
@@ -99,8 +100,8 @@ func TestHandleMakeLeave(t *testing.T) {
 		RoomID:     validRoom.String(),
 		Type:       spec.MRoomMember,
 		StateKey:   &stateKey,
-		PrevEvents: []interface{}{powerLevelsEvent.EventID()},
-		AuthEvents: []interface{}{createEvent.EventID(), joinRulesEvent.EventID(), powerLevelsEvent.EventID()},
+		PrevEvents: []any{powerLevelsEvent.EventID()},
+		AuthEvents: []any{createEvent.EventID(), joinRulesEvent.EventID(), powerLevelsEvent.EventID()},
 		Depth:      3,
 		Content:    spec.RawJSON(`{"membership":"leave"}`),
 		Unsigned:   spec.RawJSON(""),

@@ -4,11 +4,13 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/matrix-org/gomatrixserverlib/spec"
+	"codefloe.com/pat-s/gomatrixserverlib/spec"
 )
 
-const defaultDomain = "domain"
-const defaultLocalpart = "localpart"
+const (
+	defaultDomain    = "domain"
+	defaultLocalpart = "localpart"
+)
 
 func TestValidUserIDs(t *testing.T) {
 	tests := map[string]struct {
@@ -28,7 +30,6 @@ func TestValidUserIDs(t *testing.T) {
 			raw := fmt.Sprintf("@%s:%s", tc.localpart, tc.domain)
 
 			userID, err := spec.NewUserID(raw, tc.allowHistoricIDs)
-
 			if err != nil {
 				t.Fatalf("valid userID should not fail: %s", err.Error())
 			}
@@ -60,7 +61,7 @@ func TestInvalidUserIDs(t *testing.T) {
 			userID := "@a:"
 			domain := ""
 			for i := 0; i < 255-len(userID)+1; i++ {
-				domain = domain + "a"
+				domain += "a"
 			}
 
 			raw := userID + domain

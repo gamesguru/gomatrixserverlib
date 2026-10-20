@@ -17,7 +17,7 @@ package gomatrixserverlib
 import (
 	"strings"
 
-	"github.com/matrix-org/gomatrixserverlib/spec"
+	"codefloe.com/pat-s/gomatrixserverlib/spec"
 )
 
 // A stateResV2ConflictedPowerLevel is used to sort the events by effective
@@ -37,7 +37,7 @@ type stateResV2ConflictedPowerLevel struct {
 // ensures that the results are deterministic.
 type stateResV2ConflictedPowerLevelHeap []*stateResV2ConflictedPowerLevel
 
-// Less implements sort.Interface
+// Less implements sort.Interface.
 func sortStateResV2ConflictedPowerLevelHeap(a, b *stateResV2ConflictedPowerLevel) int {
 	// Try to tiebreak on the effective power level
 	if a.powerLevel > b.powerLevel {
@@ -56,21 +56,7 @@ func sortStateResV2ConflictedPowerLevelHeap(a, b *stateResV2ConflictedPowerLevel
 	}
 	// If we've reached here then s[i].originServerTS == s[j].originServerTS
 	// so instead try to tiebreak on a lexicographical comparison of the event ID
-	return strings.Compare(a.eventID[:], b.eventID[:])
-}
-
-// Push implements heap.Interface
-func (s *stateResV2ConflictedPowerLevelHeap) Push(x *stateResV2ConflictedPowerLevel) {
-	*s = append(*s, x)
-}
-
-// Pop implements heap.Interface
-func (s *stateResV2ConflictedPowerLevelHeap) Pop() *stateResV2ConflictedPowerLevel {
-	old := *s
-	n := len(old)
-	x := old[n-1]
-	*s = old[:n-1]
-	return x
+	return strings.Compare(a.eventID, b.eventID)
 }
 
 // A stateResV2ConflictedOther is used to sort the events by power level
@@ -120,16 +106,66 @@ func sortStateResV2ConflictedOtherHeap(a, b *stateResV2ConflictedOther) int {
 	return strings.Compare(a.eventID, b.eventID)
 }
 
-// Push implements heap.Interface
-func (s *stateResV2ConflictedOtherHeap) Push(x *stateResV2ConflictedOther) {
-	*s = append(*s, x)
+// kahnHeap is a binary max-heap of the events that are ready to be placed
+// into the graph during Kahn's algorithm. The pop method returns the event
+// that sorts last according to cmp, which is the event the algorithm places
+// next.
+// Keeping a heap rather than re-sorting the whole queue after every pop makes
+// ordering n events O(n log n) instead of O(n² log n).
+type kahnHeap[T any] struct {
+	items []T
+	cmp   func(a, b T) int
 }
 
-// Pop implements heap.Interface
-func (s *stateResV2ConflictedOtherHeap) Pop() *stateResV2ConflictedOther {
-	old := *s
-	n := len(old)
-	x := old[n-1]
-	*s = old[:n-1]
-	return x
+// kahnHeapArity is the number of children of each node in a kahnHeap.
+const kahnHeapArity = 2
+
+func newKahnHeap[T any](capacity int, cmp func(a, b T) int) *kahnHeap[T] {
+	return &kahnHeap[T]{items: make([]T, 0, capacity), cmp: cmp}
+}
+
+func (h *kahnHeap[T]) len() int {
+	return len(h.items)
+}
+
+// above reports whether the item at i belongs above the item at j.
+func (h *kahnHeap[T]) above(i, j int) bool {
+	return h.cmp(h.items[i], h.items[j]) > 0
+}
+
+func (h *kahnHeap[T]) push(x T) {
+	h.items = append(h.items, x)
+	for i := len(h.items) - 1; i > 0; {
+		parent := (i - 1) / kahnHeapArity
+		if !h.above(i, parent) {
+			break
+		}
+		h.items[i], h.items[parent] = h.items[parent], h.items[i]
+		i = parent
+	}
+}
+
+func (h *kahnHeap[T]) pop() T {
+	top := h.items[0]
+	last := len(h.items) - 1
+	h.items[0] = h.items[last]
+	var zero T
+	h.items[last] = zero
+	h.items = h.items[:last]
+	for i := 0; ; {
+		largest := i
+		left := kahnHeapArity*i + 1
+		if left < last && h.above(left, largest) {
+			largest = left
+		}
+		if right := left + 1; right < last && h.above(right, largest) {
+			largest = right
+		}
+		if largest == i {
+			break
+		}
+		h.items[i], h.items[largest] = h.items[largest], h.items[i]
+		i = largest
+	}
+	return top
 }

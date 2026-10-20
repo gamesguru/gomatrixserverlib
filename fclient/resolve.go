@@ -17,11 +17,12 @@ package fclient
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"net"
 	"strconv"
 
-	"github.com/matrix-org/gomatrixserverlib/spec"
+	"codefloe.com/pat-s/gomatrixserverlib/spec"
 )
 
 // ResolutionResult is a result of looking up a Matrix homeserver according to
@@ -47,7 +48,7 @@ func ResolveServer(ctx context.Context, serverName spec.ServerName) (results []R
 func resolveServer(ctx context.Context, serverName spec.ServerName, checkWellKnown bool) (results []ResolutionResult, err error) {
 	host, port, valid := spec.ParseAndValidateServerName(serverName)
 	if !valid {
-		err = fmt.Errorf("Invalid server name")
+		err = fmt.Errorf("invalid server name")
 		return
 	}
 
@@ -61,7 +62,7 @@ func resolveServer(ctx context.Context, serverName spec.ServerName, checkWellKno
 		var destination string
 
 		if port == -1 {
-			destination = net.JoinHostPort(host, strconv.Itoa(8448))
+			destination = net.JoinHostPort(host, strconv.Itoa(8448)) //nolint:mnd // default federation port
 		} else {
 			destination = string(serverName)
 		}
@@ -105,7 +106,7 @@ func resolveServer(ctx context.Context, serverName spec.ServerName, checkWellKno
 }
 
 // handleNoWellKnown implements steps 4 and 5 of the resolution algorithm (as
-// well as 3.3 and 3.4)
+// well as 3.3 and 3.4).
 func handleNoWellKnown(ctx context.Context, serverName spec.ServerName) (results []ResolutionResult) {
 	// 4. If the /.well-known request resulted in an error response
 	records, err := lookupSRV(ctx, serverName)
@@ -134,7 +135,7 @@ func handleNoWellKnown(ctx context.Context, serverName spec.ServerName) (results
 	// record was not found
 	results = []ResolutionResult{
 		{
-			Destination:   fmt.Sprintf("%s:%d", serverName, 8448),
+			Destination:   fmt.Sprintf("%s:%d", serverName, 8448), //nolint:mnd // default federation port
 			Host:          serverName,
 			TLSServerName: string(serverName),
 		},
@@ -147,7 +148,8 @@ func lookupSRV(ctx context.Context, serverName spec.ServerName) ([]*net.SRV, err
 	// Check matrix-fed service first, as of Matrix 1.8
 	_, records, err := net.DefaultResolver.LookupSRV(ctx, "matrix-fed", "tcp", string(serverName))
 	if err != nil {
-		if dnserr, ok := err.(*net.DNSError); ok {
+		dnserr := &net.DNSError{}
+		if errors.As(err, &dnserr) {
 			if !dnserr.IsNotFound {
 				// not found errors are expected, but everything else is very much not
 				return records, err

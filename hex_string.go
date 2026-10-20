@@ -21,7 +21,7 @@ import (
 )
 
 // A HexString is a string of bytes that are hex encoded when used in JSON.
-// The bytes encoded using hex when marshalled as JSON.
+// The bytes encoded using hex when marshaled as JSON.
 // When the bytes are unmarshalled from JSON they are decoded from hex.
 type HexString []byte
 

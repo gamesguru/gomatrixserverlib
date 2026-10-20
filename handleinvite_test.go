@@ -4,13 +4,15 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"testing"
 	"time"
 
-	"github.com/matrix-org/gomatrixserverlib/spec"
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/crypto/ed25519"
+
+	"codefloe.com/pat-s/gomatrixserverlib/spec"
 )
 
 type TestRoomQuerier struct {
@@ -84,8 +86,8 @@ func TestHandleInvite(t *testing.T) {
 		RoomID:     validRoom.String(),
 		Type:       "m.room.create",
 		StateKey:   &stateKey,
-		PrevEvents: []interface{}{},
-		AuthEvents: []interface{}{},
+		PrevEvents: []any{},
+		AuthEvents: []any{},
 		Depth:      0,
 		Content:    spec.RawJSON(`{"creator":"@user:server","m.federate":true,"room_version":"10"}`),
 		Unsigned:   spec.RawJSON(""),
@@ -267,16 +269,20 @@ func TestHandleInvite(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			_, joinErr := HandleInvite(context.Background(), tc.input)
 			if tc.expectedErr {
-				switch e := joinErr.(type) {
-				case nil:
-					t.Fatalf("Error should not be nil")
-				case spec.InternalServerError:
-					assert.Equal(t, tc.errType, InternalErr)
-				case spec.MatrixError:
-					assert.Equal(t, tc.errType, MatrixErr)
-					assert.Equal(t, tc.errCode, e.ErrCode)
-				default:
-					t.Fatalf("Unexpected Error Type")
+				{
+					var e spec.InternalServerError
+					var e1 spec.MatrixError
+					switch {
+					case joinErr == nil:
+						t.Fatalf("Error should not be nil")
+					case errors.As(joinErr, &e):
+						assert.Equal(t, tc.errType, InternalErr)
+					case errors.As(joinErr, &e1):
+						assert.Equal(t, tc.errType, MatrixErr)
+						assert.Equal(t, tc.errCode, e1.ErrCode)
+					default:
+						t.Fatalf("Unexpected Error Type")
+					}
 				}
 			} else {
 				jsonBytes, err := json.Marshal(&joinErr)
@@ -428,7 +434,7 @@ func TestHandleInviteNilContext(t *testing.T) {
 	verifier := &KeyRing{[]KeyFetcher{&TestRequestKeyDummy{}}, &joinKeyDatabase{key: pk}}
 
 	assert.Panics(t, func() {
-		_, _ = HandleInvite(nil, HandleInviteInput{ // nolint
+		_, _ = HandleInvite(nil, HandleInviteInput{ //nolint
 			RoomID:            *validRoom,
 			RoomVersion:       "",
 			KeyID:             keyID,
@@ -465,8 +471,8 @@ func TestHandleInviteV3(t *testing.T) {
 		RoomID:     validRoom.String(),
 		Type:       "m.room.create",
 		StateKey:   &stateKey,
-		PrevEvents: []interface{}{},
-		AuthEvents: []interface{}{},
+		PrevEvents: []any{},
+		AuthEvents: []any{},
 		Depth:      0,
 		Content:    spec.RawJSON(`{"creator":"@user:server","m.federate":true,"room_version":"10"}`),
 		Unsigned:   spec.RawJSON(""),
@@ -675,16 +681,20 @@ func TestHandleInviteV3(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			_, joinErr := HandleInviteV3(context.Background(), tc.input)
 			if tc.expectedErr {
-				switch e := joinErr.(type) {
-				case nil:
-					t.Fatalf("Error should not be nil")
-				case spec.InternalServerError:
-					assert.Equal(t, tc.errType, InternalErr)
-				case spec.MatrixError:
-					assert.Equal(t, tc.errType, MatrixErr)
-					assert.Equal(t, tc.errCode, e.ErrCode)
-				default:
-					t.Fatalf("Unexpected Error Type")
+				{
+					var e spec.InternalServerError
+					var e1 spec.MatrixError
+					switch {
+					case joinErr == nil:
+						t.Fatalf("Error should not be nil")
+					case errors.As(joinErr, &e):
+						assert.Equal(t, tc.errType, InternalErr)
+					case errors.As(joinErr, &e1):
+						assert.Equal(t, tc.errType, MatrixErr)
+						assert.Equal(t, tc.errCode, e1.ErrCode)
+					default:
+						t.Fatalf("Unexpected Error Type")
+					}
 				}
 			} else {
 				jsonBytes, err := json.Marshal(&joinErr)

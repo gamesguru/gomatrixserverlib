@@ -16,19 +16,21 @@
 package gomatrixserverlib
 
 import (
+	"encoding/json"
+	"errors"
 	"fmt"
 	"strings"
 	"unicode/utf8"
 
-	"github.com/matrix-org/gomatrixserverlib/spec"
+	"codefloe.com/pat-s/gomatrixserverlib/spec"
 )
 
-// Event validation errors
+// Event validation errors.
 const (
 	EventValidationTooLarge int = 1
 )
 
-// EventValidationError is returned if there is a problem validating an event
+// EventValidationError is returned if there is a problem validating an event.
 type EventValidationError struct {
 	Message     string
 	Code        int
@@ -49,7 +51,28 @@ type eventFields struct {
 	Depth          int64          `json:"depth"`
 	Unsigned       spec.RawJSON   `json:"unsigned,omitempty"`
 	OriginServerTS spec.Timestamp `json:"origin_server_ts"`
-	//Origin         spec.ServerName `json:"origin"`
+	// Origin         spec.ServerName `json:"origin"`
+}
+
+func validateEventContent(eventJSON []byte) error {
+	var fields struct {
+		Content json.RawMessage `json:"content"`
+	}
+	if err := json.Unmarshal(eventJSON, &fields); err != nil {
+		return err
+	}
+	if len(fields.Content) == 0 {
+		return errors.New("gomatrixserverlib: event content must be a JSON object")
+	}
+
+	var content map[string]json.RawMessage
+	if err := json.Unmarshal(fields.Content, &content); err != nil {
+		return fmt.Errorf("gomatrixserverlib: event content must be a JSON object: %w", err)
+	}
+	if content == nil {
+		return errors.New("gomatrixserverlib: event content must be a JSON object")
+	}
+	return nil
 }
 
 var emptyEventReferenceList = []eventReference{}
@@ -104,7 +127,7 @@ func SplitID(sigil byte, id string) (local string, domain spec.ServerName, err e
 		return "", "", fmt.Errorf("gomatrixserverlib: invalid ID %q doesn't start with %q", id, sigil)
 	}
 	parts := strings.SplitN(id, ":", 2)
-	if len(parts) != 2 {
+	if len(parts) != 2 { //nolint:mnd
 		// The ID must have a ":" character.
 		return "", "", fmt.Errorf("gomatrixserverlib: invalid ID %q missing ':'", id)
 	}

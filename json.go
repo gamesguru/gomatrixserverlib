@@ -23,8 +23,9 @@ import (
 	"unicode/utf16"
 	"unicode/utf8"
 
-	"github.com/matrix-org/gomatrixserverlib/spec"
 	"github.com/tidwall/gjson"
+
+	"codefloe.com/pat-s/gomatrixserverlib/spec"
 )
 
 type EventJSONs []spec.RawJSON
@@ -53,14 +54,17 @@ func (e EventJSONs) UntrustedEvents(roomVersion RoomVersion) []PDU {
 	events := make([]PDU, 0, len(e))
 	for _, js := range e {
 		event, err := verImpl.NewEventFromUntrustedJSON(js)
-		switch e := err.(type) {
-		case EventValidationError:
-			if !e.Persistable {
+		{
+			var e EventValidationError
+			switch {
+			case errors.As(err, &e):
+				if !e.Persistable {
+					continue
+				}
+			case err == nil:
+			default:
 				continue
 			}
-		case nil:
-		default:
-			continue
 		}
 		events = append(events, event)
 	}
@@ -149,7 +153,7 @@ func verifyEnforcedCanonicalJSON(input []byte) error {
 }
 
 // CanonicalJSONAssumeValid is the same as CanonicalJSON, but assumes the
-// input is valid JSON
+// input is valid JSON.
 func CanonicalJSONAssumeValid(input []byte) []byte {
 	input = CompactJSON(input, make([]byte, 0, len(input)))
 	return SortJSON(input, make([]byte, 0, len(input)))
@@ -162,7 +166,7 @@ func SortJSON(input, output []byte) []byte {
 	return sortJSONValue(result, output)
 }
 
-// sortJSONValue takes a gjson.Result and sorts it. inputJSON must be the
+// sortJSONValue takes a gjson.Result and sorts it. InputJSON must be the
 // raw JSON bytes that gjson.Result points to.
 func sortJSONValue(input gjson.Result, output []byte) []byte {
 	if input.IsArray() {
@@ -177,7 +181,7 @@ func sortJSONValue(input gjson.Result, output []byte) []byte {
 }
 
 // sortJSONArray takes a gjson.Result and sorts it, assuming its an array.
-// inputJSON must be the raw JSON bytes that gjson.Result points to.
+// InputJSON must be the raw JSON bytes that gjson.Result points to.
 func sortJSONArray(input gjson.Result, output []byte) []byte {
 	sep := byte('[')
 
@@ -201,7 +205,7 @@ func sortJSONArray(input gjson.Result, output []byte) []byte {
 }
 
 // sortJSONObject takes a gjson.Result and sorts it, assuming its an object.
-// inputJSON must be the raw JSON bytes that gjson.Result points to.
+// InputJSON must be the raw JSON bytes that gjson.Result points to.
 func sortJSONObject(input gjson.Result, output []byte) []byte {
 	type entry struct {
 		key   string // The parsed key string
@@ -252,7 +256,7 @@ func sortJSONObject(input gjson.Result, output []byte) []byte {
 }
 
 // CompactJSON makes the encoded JSON as small as possible by removing
-// whitespace and unneeded unicode escapes
+// whitespace and unneeded unicode escapes.
 func CompactJSON(input, output []byte) []byte {
 	var i int
 	for i < len(input) {
@@ -280,14 +284,15 @@ func CompactJSON(input, output []byte) []byte {
 				if c == '\\' {
 					escape := input[i]
 					i++
-					if escape == 'u' {
+					switch escape {
+					case 'u':
 						// If this is a unicode escape then we need to handle it specially
 						output, i = compactUnicodeEscape(input, output, i)
-					} else if escape == '/' {
+					case '/':
 						// JSON does not require escaping '/', but allows encoders to escape it as a special case.
 						// Since the escape isn't required we remove it.
 						output = append(output, escape)
-					} else {
+					default:
 						// All other permitted escapes are single charater escapes that are already in their shortest form.
 						output = append(output, '\\', escape)
 					}
@@ -316,34 +321,35 @@ func compactUnicodeEscape(input, output []byte, index int) ([]byte, int) {
 		HEX     = "0123456789abcdef"
 	)
 	// If there aren't enough bytes to decode the hex escape then return.
-	if len(input)-index < 4 {
+	if len(input)-index < 4 { //nolint:mnd
 		return output, len(input)
 	}
 	// Decode the 4 hex digits.
 	c := readHexDigits(input[index : index+4])
 	index += 4
-	if c < ' ' {
+	switch {
+	case c < ' ':
 		// If the character is less than SPACE 0x20 then it will need escaping.
 		escape := ESCAPES[c]
 		output = append(output, '\\', escape)
 		if escape == 'u' {
-			output = append(output, '0', '0', byte('0'+(c>>4)), HEX[c&0xF])
+			output = append(output, '0', '0', byte('0'+(c>>4)), HEX[c&0xF]) //nolint:mnd
 		}
-	} else if c == '\\' || c == '"' {
+	case c == '\\' || c == '"':
 		// Otherwise the character only needs escaping if it is a QUOTE '"' or BACKSLASH '\\'.
 		output = append(output, '\\', byte(c))
-	} else if utf16.IsSurrogate(c) {
+	case utf16.IsSurrogate(c):
 		if input[index] != '\\' || input[index+1] != 'u' {
 			return output, index
 		}
-		index += 2 // skip the \u"
-		if len(input)-index < 4 {
+		index += 2                // skip the \u"
+		if len(input)-index < 4 { //nolint:mnd
 			return output, index
 		}
 		c2 := readHexDigits(input[index : index+4])
 		index += 4
 		appendUTF8(utf16.DecodeRune(c, c2))
-	} else {
+	default:
 		appendUTF8(c)
 	}
 	return output, index
@@ -357,13 +363,13 @@ func readHexDigits(input []byte) rune {
 	hex -= 0x30303030
 	// strip the higher bits, maps 'a' => 'A'
 	hex &= 0x1F1F1F1F
-	mask := hex & 0x10101010
+	mask := hex & 0x10101010 //nolint:mnd
 	// subtract 'A' - 10 - '9' - 9 = 7 from the letters.
 	hex -= mask >> 1
-	hex += mask >> 4
+	hex += mask >> 4 //nolint:mnd
 	// collect the nibbles
-	hex |= hex >> 4
+	hex |= hex >> 4 //nolint:mnd
 	hex &= 0xFF00FF
-	hex |= hex >> 8
-	return rune(hex & 0xFFFF)
+	hex |= hex >> 8           //nolint:mnd
+	return rune(hex & 0xFFFF) //nolint:mnd
 }

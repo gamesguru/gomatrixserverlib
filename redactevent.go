@@ -3,69 +3,69 @@ package gomatrixserverlib
 import (
 	"encoding/json"
 
-	"github.com/matrix-org/gomatrixserverlib/spec"
+	"codefloe.com/pat-s/gomatrixserverlib/spec"
 )
 
-// For satisfying "Upon receipt of a redaction event, the server must strip off any keys not in the following list:"
+// For satisfying "Upon receipt of a redaction event, the server must strip off any keys not in the following list:".
 type unredactableEventFieldsV1 struct {
-	EventID        spec.RawJSON           `json:"event_id,omitempty"`
-	Type           string                 `json:"type"`
-	RoomID         spec.RawJSON           `json:"room_id,omitempty"`
-	Sender         spec.RawJSON           `json:"sender,omitempty"`
-	StateKey       spec.RawJSON           `json:"state_key,omitempty"`
-	Content        map[string]interface{} `json:"content"`
-	Hashes         spec.RawJSON           `json:"hashes,omitempty"`
-	Signatures     spec.RawJSON           `json:"signatures,omitempty"`
-	Depth          spec.RawJSON           `json:"depth,omitempty"`
-	PrevEvents     spec.RawJSON           `json:"prev_events,omitempty"`
-	PrevState      spec.RawJSON           `json:"prev_state,omitempty"`
-	AuthEvents     spec.RawJSON           `json:"auth_events,omitempty"`
-	Origin         spec.RawJSON           `json:"origin,omitempty"`
-	OriginServerTS spec.RawJSON           `json:"origin_server_ts,omitempty"`
-	Membership     spec.RawJSON           `json:"membership,omitempty"`
+	EventID        spec.RawJSON   `json:"event_id,omitempty"`
+	Type           string         `json:"type"`
+	RoomID         spec.RawJSON   `json:"room_id,omitempty"`
+	Sender         spec.RawJSON   `json:"sender,omitempty"`
+	StateKey       spec.RawJSON   `json:"state_key,omitempty"`
+	Content        map[string]any `json:"content"`
+	Hashes         spec.RawJSON   `json:"hashes,omitempty"`
+	Signatures     spec.RawJSON   `json:"signatures,omitempty"`
+	Depth          spec.RawJSON   `json:"depth,omitempty"`
+	PrevEvents     spec.RawJSON   `json:"prev_events,omitempty"`
+	PrevState      spec.RawJSON   `json:"prev_state,omitempty"`
+	AuthEvents     spec.RawJSON   `json:"auth_events,omitempty"`
+	Origin         spec.RawJSON   `json:"origin,omitempty"`
+	OriginServerTS spec.RawJSON   `json:"origin_server_ts,omitempty"`
+	Membership     spec.RawJSON   `json:"membership,omitempty"`
 }
 
 func (u *unredactableEventFieldsV1) GetType() string {
 	return u.Type
 }
 
-func (u *unredactableEventFieldsV1) GetContent() map[string]interface{} {
+func (u *unredactableEventFieldsV1) GetContent() map[string]any {
 	return u.Content
 }
 
-func (u *unredactableEventFieldsV1) SetContent(content map[string]interface{}) {
+func (u *unredactableEventFieldsV1) SetContent(content map[string]any) {
 	u.Content = content
 }
 
-// For satisfying "Upon receipt of a redaction event, the server must strip off any keys not in the following list:"
+// For satisfying "Upon receipt of a redaction event, the server must strip off any keys not in the following list:".
 type unredactableEventFieldsV2 struct {
-	EventID        spec.RawJSON           `json:"event_id,omitempty"`
-	Type           string                 `json:"type"`
-	RoomID         spec.RawJSON           `json:"room_id,omitempty"`
-	Sender         spec.RawJSON           `json:"sender,omitempty"`
-	StateKey       spec.RawJSON           `json:"state_key,omitempty"`
-	Content        map[string]interface{} `json:"content"`
-	Hashes         spec.RawJSON           `json:"hashes,omitempty"`
-	Signatures     spec.RawJSON           `json:"signatures,omitempty"`
-	Depth          spec.RawJSON           `json:"depth,omitempty"`
-	PrevEvents     spec.RawJSON           `json:"prev_events,omitempty"`
-	AuthEvents     spec.RawJSON           `json:"auth_events,omitempty"`
-	OriginServerTS spec.RawJSON           `json:"origin_server_ts,omitempty"`
+	EventID        spec.RawJSON   `json:"event_id,omitempty"`
+	Type           string         `json:"type"`
+	RoomID         spec.RawJSON   `json:"room_id,omitempty"`
+	Sender         spec.RawJSON   `json:"sender,omitempty"`
+	StateKey       spec.RawJSON   `json:"state_key,omitempty"`
+	Content        map[string]any `json:"content"`
+	Hashes         spec.RawJSON   `json:"hashes,omitempty"`
+	Signatures     spec.RawJSON   `json:"signatures,omitempty"`
+	Depth          spec.RawJSON   `json:"depth,omitempty"`
+	PrevEvents     spec.RawJSON   `json:"prev_events,omitempty"`
+	AuthEvents     spec.RawJSON   `json:"auth_events,omitempty"`
+	OriginServerTS spec.RawJSON   `json:"origin_server_ts,omitempty"`
 }
 
 func (u *unredactableEventFieldsV2) GetType() string {
 	return u.Type
 }
 
-func (u *unredactableEventFieldsV2) GetContent() map[string]interface{} {
+func (u *unredactableEventFieldsV2) GetContent() map[string]any {
 	return u.Content
 }
 
-func (u *unredactableEventFieldsV2) SetContent(content map[string]interface{}) {
+func (u *unredactableEventFieldsV2) SetContent(content map[string]any) {
 	u.Content = content
 }
 
-// For satisfying "The content object must also be stripped of all keys, unless it is one of one of the following event types:"
+// For satisfying "The content object must also be stripped of all keys, unless it is one of one of the following event types:".
 var (
 	unredactableContentFieldsV1 = map[string][]string{
 		"m.room.member":             {"membership"},
@@ -108,51 +108,75 @@ var (
 
 // RedactEvent strips the user controlled fields from an event, but leaves the
 // fields necessary for authenticating the event. Implements https://spec.matrix.org/unstable/rooms/v9/#redactions
-// which protects membership 'join_authorised_via_users_server' key
+// which protects the membership join authorisation key.
 func redactEventJSONV5(eventJSON []byte) ([]byte, error) {
-	return redactEventJSON(eventJSON, &unredactableEventFieldsV2{}, unredactableContentFieldsV5)
+	return redactEventJSON(eventJSON, &unredactableEventFieldsV2{}, unredactableContentFieldsV5, keepThirdPartyInviteSigned)
 }
 
 // RedactEvent strips the user controlled fields from an event, but leaves the
 // fields necessary for authenticating the event. Implements https://spec.matrix.org/unstable/rooms/v9/#redactions
-// which protects membership 'join_authorised_via_users_server' key
+// which protects the membership join authorisation key.
 func redactEventJSONV4(eventJSON []byte) ([]byte, error) {
-	return redactEventJSON(eventJSON, &unredactableEventFieldsV1{}, unredactableContentFieldsV4)
+	return redactEventJSON(eventJSON, &unredactableEventFieldsV1{}, unredactableContentFieldsV4, nil)
 }
 
 // RedactEvent strips the user controlled fields from an event, but leaves the
 // fields necessary for authenticating the event. Implements https://spec.matrix.org/unstable/rooms/v8/#redactions
-// which protects join rules 'allow' key
+// which protects join rules 'allow' key.
 func redactEventJSONV3(eventJSON []byte) ([]byte, error) {
-	return redactEventJSON(eventJSON, &unredactableEventFieldsV1{}, unredactableContentFieldsV3)
+	return redactEventJSON(eventJSON, &unredactableEventFieldsV1{}, unredactableContentFieldsV3, nil)
 }
 
 // RedactEvent strips the user controlled fields from an event, but leaves the
 // fields necessary for authenticating the event. Implements https://spec.matrix.org/unstable/rooms/v6/#redactions
-// which has no special meaning for m.room.aliases
+// which has no special meaning for m.room.aliases.
 func redactEventJSONV2(eventJSON []byte) ([]byte, error) {
-	return redactEventJSON(eventJSON, &unredactableEventFieldsV1{}, unredactableContentFieldsV2)
+	return redactEventJSON(eventJSON, &unredactableEventFieldsV1{}, unredactableContentFieldsV2, nil)
 }
 
 // RedactEvent strips the user controlled fields from an event, but leaves the
 // fields necessary for authenticating the event. Implements https://spec.matrix.org/unstable/rooms/v1/#redactions
 func redactEventJSONV1(eventJSON []byte) ([]byte, error) {
-	return redactEventJSON(eventJSON, &unredactableEventFieldsV1{}, unredactableContentFieldsV1)
+	return redactEventJSON(eventJSON, &unredactableEventFieldsV1{}, unredactableContentFieldsV1, nil)
 }
 
 type unredactableEvent interface {
 	*unredactableEventFieldsV1 | *unredactableEventFieldsV2 | *unredactableEventFieldsVStateDAGs
 	GetType() string
-	GetContent() map[string]interface{}
-	SetContent(map[string]interface{})
+	GetContent() map[string]any
+	SetContent(map[string]any)
 }
 
-func redactEventJSON[T unredactableEvent](eventJSON []byte, unredactableEvent T, eventTypeToKeepContentFields map[string][]string) ([]byte, error) {
+// keepThirdPartyInviteSigned implements MSC3821 (room version 11+): an
+// m.room.member event keeps the signed key of content.third_party_invite.
+// An object without signed is kept empty and a non-object is dropped, which
+// matches Synapse so that all servers agree on the redacted event's hash.
+func keepThirdPartyInviteSigned(eventType string, oldContent, newContent map[string]any) {
+	if eventType != spec.MRoomMember {
+		return
+	}
+	thirdPartyInvite, ok := oldContent["third_party_invite"].(map[string]any)
+	if !ok {
+		return
+	}
+	kept := map[string]any{}
+	if signed, ok := thirdPartyInvite["signed"]; ok {
+		kept["signed"] = signed
+	}
+	newContent["third_party_invite"] = kept
+}
+
+// redactEventJSON keeps the fields in eventTypeToKeepContentFields and then
+// calls keepNestedContent, if set, to preserve nested keys.
+func redactEventJSON[T unredactableEvent](
+	eventJSON []byte, unredactableEvent T, eventTypeToKeepContentFields map[string][]string,
+	keepNestedContent func(eventType string, oldContent, newContent map[string]any),
+) ([]byte, error) {
 	// Unmarshalling into a struct will discard any extra fields from the event.
 	if err := json.Unmarshal(eventJSON, &unredactableEvent); err != nil {
 		return nil, err
 	}
-	newContent := map[string]interface{}{}
+	newContent := map[string]any{}
 	keepContentFields, ok := eventTypeToKeepContentFields[unredactableEvent.GetType()]
 	if ok && len(keepContentFields) == 0 {
 		// An unredactable content entry with no provided fields should keep all fields.
@@ -166,6 +190,10 @@ func redactEventJSON[T unredactableEvent](eventJSON []byte, unredactableEvent T,
 		}
 	}
 
+	if keepNestedContent != nil {
+		keepNestedContent(unredactableEvent.GetType(), unredactableEvent.GetContent(), newContent)
+	}
+
 	// Replace the content with our new filtered content.
 	// This will zero out any keys that weren't copied in the loop above.
 	unredactableEvent.SetContent(newContent)
@@ -174,32 +202,32 @@ func redactEventJSON[T unredactableEvent](eventJSON []byte, unredactableEvent T,
 }
 
 type unredactableEventFieldsVStateDAGs struct {
-	EventID         spec.RawJSON           `json:"event_id,omitempty"`
-	Type            string                 `json:"type"`
-	RoomID          spec.RawJSON           `json:"room_id,omitempty"`
-	Sender          spec.RawJSON           `json:"sender,omitempty"`
-	StateKey        spec.RawJSON           `json:"state_key,omitempty"`
-	Content         map[string]interface{} `json:"content"`
-	Hashes          spec.RawJSON           `json:"hashes,omitempty"`
-	Signatures      spec.RawJSON           `json:"signatures,omitempty"`
-	Depth           spec.RawJSON           `json:"depth,omitempty"`
-	PrevEvents      spec.RawJSON           `json:"prev_events,omitempty"`
-	PrevStateEvents spec.RawJSON           `json:"prev_state_events,omitempty"`
-	OriginServerTS  spec.RawJSON           `json:"origin_server_ts,omitempty"`
+	EventID         spec.RawJSON   `json:"event_id,omitempty"`
+	Type            string         `json:"type"`
+	RoomID          spec.RawJSON   `json:"room_id,omitempty"`
+	Sender          spec.RawJSON   `json:"sender,omitempty"`
+	StateKey        spec.RawJSON   `json:"state_key,omitempty"`
+	Content         map[string]any `json:"content"`
+	Hashes          spec.RawJSON   `json:"hashes,omitempty"`
+	Signatures      spec.RawJSON   `json:"signatures,omitempty"`
+	Depth           spec.RawJSON   `json:"depth,omitempty"`
+	PrevEvents      spec.RawJSON   `json:"prev_events,omitempty"`
+	PrevStateEvents spec.RawJSON   `json:"prev_state_events,omitempty"`
+	OriginServerTS  spec.RawJSON   `json:"origin_server_ts,omitempty"`
 }
 
 func (u *unredactableEventFieldsVStateDAGs) GetType() string {
 	return u.Type
 }
 
-func (u *unredactableEventFieldsVStateDAGs) GetContent() map[string]interface{} {
+func (u *unredactableEventFieldsVStateDAGs) GetContent() map[string]any {
 	return u.Content
 }
 
-func (u *unredactableEventFieldsVStateDAGs) SetContent(content map[string]interface{}) {
+func (u *unredactableEventFieldsVStateDAGs) SetContent(content map[string]any) {
 	u.Content = content
 }
 
 func redactEventJSONVStateDAGs(eventJSON []byte) ([]byte, error) {
-	return redactEventJSON(eventJSON, &unredactableEventFieldsVStateDAGs{}, unredactableContentFieldsV5)
+	return redactEventJSON(eventJSON, &unredactableEventFieldsVStateDAGs{}, unredactableContentFieldsV5, keepThirdPartyInviteSigned)
 }

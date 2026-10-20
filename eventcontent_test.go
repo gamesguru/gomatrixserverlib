@@ -23,9 +23,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/matrix-org/gomatrixserverlib/spec"
 	"github.com/stretchr/testify/assert"
 	"golang.org/x/crypto/ed25519"
+
+	"codefloe.com/pat-s/gomatrixserverlib/spec"
 )
 
 func BenchmarkLevelJSONValueInt(b *testing.B) {
@@ -63,7 +64,7 @@ func TestLevelJSONValueValid(t *testing.T) {
 			t.Fatalf("Wanted entry %d to exist", want)
 		}
 		if int64(want) != got.value {
-			t.Fatalf("Wanted %d got %q", want, got.value)
+			t.Fatalf("Wanted %d got %d", want, got.value)
 		}
 	}
 }
@@ -138,7 +139,7 @@ func TestHistoryVisibility_Scan(t *testing.T) {
 	tests := []struct {
 		name           string
 		h              HistoryVisibility
-		src            interface{}
+		src            any
 		wantErr        bool
 		wantVisibility HistoryVisibility
 	}{
@@ -177,7 +178,6 @@ func TestHistoryVisibility_Scan(t *testing.T) {
 			if !tt.wantErr && tt.h != tt.wantVisibility {
 				t.Errorf("Scan() want = %v, got %v", tt.wantVisibility, tt.h)
 			}
-
 		})
 	}
 }

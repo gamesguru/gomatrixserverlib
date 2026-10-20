@@ -17,7 +17,7 @@ package gomatrixserverlib
 import (
 	"fmt"
 
-	"github.com/matrix-org/gomatrixserverlib/spec"
+	"codefloe.com/pat-s/gomatrixserverlib/spec"
 )
 
 type HandleMakeLeaveResponse struct {
@@ -40,7 +40,6 @@ type HandleMakeLeaveInput struct {
 }
 
 func HandleMakeLeave(input HandleMakeLeaveInput) (*HandleMakeLeaveResponse, error) {
-
 	if input.UserID.Domain() != input.RequestOrigin {
 		return nil, spec.Forbidden(fmt.Sprintf("The leave must be sent by the server of the user. Origin %s != %s",
 			input.RequestOrigin, input.UserID.Domain()))

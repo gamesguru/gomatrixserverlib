@@ -20,7 +20,8 @@ import (
 	"testing"
 
 	sets "github.com/hashicorp/go-set/v3"
-	"github.com/matrix-org/gomatrixserverlib/spec"
+
+	"codefloe.com/pat-s/gomatrixserverlib/spec"
 )
 
 var (
@@ -377,4 +378,4 @@ func assertSetEquals(t *testing.T, name string, gotSet *sets.HashSet[PDU, string
 //  f.e winner on PL, winner on timestamp
 // TestStateResolutionConcurrentBan
 // TestStateResolutionV2_1ConflictedSubgraph
-// TestStateResolutionV2_1EmptySet
+// TestStateResolutionV2_1EmptySet.
