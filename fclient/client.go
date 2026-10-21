@@ -438,7 +438,7 @@ func (fc *Client) LookupUserInfo(
 		return
 	}
 
-	err = json.NewDecoder(response.Body).Decode(&u)
+	err = decodeJSONBody(response.Body, &u)
 	if err != nil {
 		return
 	}
@@ -589,6 +589,18 @@ func (fc *Client) CreateMediaDownloadRequest(
 // If the HTTP response is not a 200, an attempt is made to parse the response
 // body into a spec.RespError. In any case, a non-200 response will result
 // in a spec.HTTPError.
+// Decode the JSON value at the start of body into v, as a JSON decoder does, but read
+// the body to its end first. A decoder stops after the value, and closing a body that
+// was not read to its end makes an HTTP/2 client reset the stream, which a server still
+// writing the end of its response reports as a failed write.
+func decodeJSONBody(body io.Reader, v any) error {
+	data, err := io.ReadAll(body)
+	if err != nil {
+		return err
+	}
+	return json.NewDecoder(bytes.NewReader(data)).Decode(v)
+}
+
 func (fc *Client) DoRequestAndParseResponse(
 	ctx context.Context,
 	req *http.Request,
@@ -631,7 +643,7 @@ func (fc *Client) DoRequestAndParseResponse(
 		}
 	}
 
-	if err = json.NewDecoder(response.Body).Decode(result); err != nil {
+	if err = decodeJSONBody(response.Body, result); err != nil {
 		return err
 	}
 
