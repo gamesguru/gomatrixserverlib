@@ -16,12 +16,12 @@
 package gomatrixserverlib
 
 import (
-	"errors"
 	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 
 	"github.com/tidwall/gjson"
