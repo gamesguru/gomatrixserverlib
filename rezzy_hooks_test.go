@@ -35,3 +35,15 @@ func TestContentHashHookIsUsed(t *testing.T) {
 		t.Fatalf("hook not used: %v", err)
 	}
 }
+
+func TestEventIDHookCanDeferToBuiltin(t *testing.T) {
+	const v = RoomVersionV10
+	json := []byte(`{"type":"m.room.message","room_id":"!r:x","sender":"@a:x","content":{},"origin_server_ts":1,"depth":1,"prev_events":[],"auth_events":[]}`)
+	want, _ := referenceOfEvent(json, v)
+	SetEventIDHook(func(RoomVersion, []byte) (string, error) { return "", ErrUseBuiltin })
+	defer SetEventIDHook(nil)
+	got, err := referenceOfEvent(json, v)
+	if err != nil || got.EventID != want.EventID {
+		t.Fatalf("did not fall back: %+v %v", got, err)
+	}
+}

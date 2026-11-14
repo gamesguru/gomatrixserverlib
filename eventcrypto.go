@@ -16,6 +16,7 @@
 package gomatrixserverlib
 
 import (
+	"errors"
 	"bytes"
 	"context"
 	"crypto/sha256"
@@ -303,10 +304,12 @@ func referenceOfEvent(eventJSON []byte, roomVersion RoomVersion) (eventReference
 	}
 	if hook := getEventIDHook(); hook != nil && verImpl.EventFormat() == EventFormatV2 {
 		eventID, err := hook(roomVersion, eventJSON)
-		if err != nil {
+		if err == nil {
+			return eventReference{eventID, eventHashFromEventID(eventID)}, nil
+		}
+		if !errors.Is(err, ErrUseBuiltin) {
 			return eventReference{}, err
 		}
-		return eventReference{eventID, eventHashFromEventID(eventID)}, nil
 	}
 	redactedJSON, err := verImpl.RedactEventJSON(eventJSON)
 	if err != nil {
