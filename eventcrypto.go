@@ -301,6 +301,13 @@ func referenceOfEvent(eventJSON []byte, roomVersion RoomVersion) (eventReference
 	if err != nil {
 		return eventReference{}, err
 	}
+	if hook := getEventIDHook(); hook != nil && verImpl.EventFormat() == EventFormatV2 {
+		eventID, err := hook(roomVersion, eventJSON)
+		if err != nil {
+			return eventReference{}, err
+		}
+		return eventReference{eventID, eventHashFromEventID(eventID)}, nil
+	}
 	redactedJSON, err := verImpl.RedactEventJSON(eventJSON)
 	if err != nil {
 		return eventReference{}, err

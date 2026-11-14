@@ -76,7 +76,7 @@ func newEventFromUntrustedJSONV3(eventJSON []byte, roomVersion IRoomVersion) (PD
 	eventJSON = CanonicalJSONAssumeValid(eventJSON)
 	res.eventJSON = eventJSON
 
-	if err = checkEventContentHash(eventJSON); err != nil {
+	if err = checkContentHash(eventJSON, res.roomVersion); err != nil {
 		res.redacted = true
 
 		// If the content hash doesn't match then we have to discard all non-essential fields
