@@ -1,6 +1,13 @@
 package gomatrixserverlib
 
-import "sync"
+import (
+	"errors"
+	"sync"
+)
+
+// ErrUseBuiltin is returned by a ContentHashHook for room versions it does not
+// handle, so the built-in check runs instead.
+var ErrUseBuiltin = errors.New("gomatrixserverlib: use the built-in implementation")
 
 // EventIDHook computes the reference-hash event ID of eventJSON under
 // roomVersion. It must return an error rather than a guess when it cannot.
@@ -49,7 +56,9 @@ func getContentHashHook() ContentHashHook {
 // checkContentHash runs the installed hook, or the built-in check.
 func checkContentHash(eventJSON []byte, roomVersion RoomVersion) error {
 	if h := getContentHashHook(); h != nil {
-		return h(roomVersion, eventJSON)
+		if err := h(roomVersion, eventJSON); !errors.Is(err, ErrUseBuiltin) {
+			return err
+		}
 	}
 	return checkEventContentHash(eventJSON)
 }
