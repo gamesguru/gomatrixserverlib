@@ -465,6 +465,9 @@ func (a *allowerContext) createEventAllowed(event PDU) error {
 	if err != nil {
 		return err
 	}
+	if sender == nil {
+		return errorf("no user ID for sender %q in room %q", event.SenderID(), a.roomID.String())
+	}
 	verImpl, err := GetRoomVersion(event.Version())
 	if err != nil {
 		return nil
@@ -497,6 +500,9 @@ func (a *allowerContext) aliasEventAllowed(event PDU) error {
 	sender, err := a.userIDQuerier(a.roomID, event.SenderID())
 	if err != nil {
 		return err
+	}
+	if sender == nil {
+		return errorf("no user ID for sender %q in room %q", event.SenderID(), a.roomID.String())
 	}
 
 	if event.RoomID().String() != a.create.roomID {
@@ -867,6 +873,9 @@ func (a *allowerContext) redactEventAllowed(event PDU) error {
 	sender, err := a.userIDQuerier(a.roomID, event.SenderID())
 	if err != nil {
 		return err
+	}
+	if sender == nil {
+		return errorf("no user ID for sender %q in room %q", event.SenderID(), a.roomID.String())
 	}
 	if string(sender.Domain()) == redactDomain {
 		return nil
