@@ -17,6 +17,7 @@ package gomatrixserverlib
 
 import (
 	"encoding/json"
+	"errors"
 	"testing"
 	"time"
 
@@ -2103,5 +2104,36 @@ func TestAllowerContextUserPowerLevel(t *testing.T) {
 	for _, tc := range testCases {
 		gotLevel := allower.userPowerLevel(spec.SenderID(tc.userToTest))
 		assert.Equal(t, tc.wantLevel, gotLevel, "%s: got wrong level", tc.name)
+	}
+}
+
+// A UserIDForSender may return (nil, nil) when a sender has no known user ID
+// (e.g. an unmapped pseudo ID). Auth must reject such events, not panic.
+func TestAllowedRejectsSenderWithoutUserID(t *testing.T) {
+	noUser := func(spec.RoomID, spec.SenderID) (*spec.UserID, error) { return nil, nil }
+	authEvents := &testAuthEvents{
+		roomVersion: RoomVersionV10,
+		CreateJSON: json.RawMessage(`{"type":"m.room.create","state_key":"","sender":"@u1:a",` +
+			`"room_id":"!r1:a","event_id":"$c:a","content":{"creator":"@u1:a"}}`),
+	}
+	for name, body := range map[string]string{
+		"create": `{"type":"m.room.create","state_key":"","sender":"@u1:a","room_id":"!r1:a",` +
+			`"event_id":"$e1:a","content":{"creator":"@u1:a"}}`,
+		"aliases": `{"type":"m.room.aliases","state_key":"a","sender":"@u1:a","room_id":"!r1:a",` +
+			`"event_id":"$e2:a","content":{"aliases":["#x:a"]}}`,
+		"redaction": `{"type":"m.room.redaction","sender":"@u1:a","room_id":"!r1:a",` +
+			`"event_id":"$e3:a","redacts":"$old:a","content":{}}`,
+	} {
+		t.Run(name, func(t *testing.T) {
+			event, err := MustGetRoomVersion(RoomVersionV10).NewEventFromTrustedJSON([]byte(body), false)
+			if err != nil {
+				t.Fatal(err)
+			}
+			err = Allowed(event, authEvents, noUser)
+			var notAllowed *NotAllowed
+			if !errors.As(err, &notAllowed) {
+				t.Fatalf("expected NotAllowed for a sender with no user ID, got %v", err)
+			}
+		})
 	}
 }

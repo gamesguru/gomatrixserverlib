@@ -6,7 +6,16 @@ import (
 	"fmt"
 
 	"github.com/gamesguru/gomatrixserverlib/spec"
+	"github.com/sirupsen/logrus"
 )
+
+// backfillEventID returns the event ID for logging, tolerating a nil event.
+func backfillEventID(ev PDU) string {
+	if ev == nil {
+		return "<nil>"
+	}
+	return ev.EventID()
+}
 
 // BackfillClient contains the necessary functions from the federation client to perform a backfill request
 // from another homeserver.
@@ -74,12 +83,18 @@ func RequestBackfill(ctx context.Context, origin spec.ServerName, b BackfillRequ
 		txn, err := b.Backfill(ctx, origin, s, roomID, limit, fromEventIDs)
 		if err != nil {
 			lastErr = err
+			logrus.WithError(err).WithFields(logrus.Fields{"room_id": roomID, "server": s}).
+				Warn("RequestBackfill: backfill request to server failed")
 			continue // try the next server
 		}
+		logrus.WithFields(logrus.Fields{"room_id": roomID, "server": s, "pdus": len(txn.PDUs)}).
+			Info("RequestBackfill: server returned events")
 		// topologically sort the events so implementations of 'get state at event' can do optimisations
 		loadResults, err := loader.LoadAndVerify(ctx, txn.PDUs, TopologicalOrderByPrevEvents, userIDForSender)
 		if err != nil {
 			lastErr = err
+			logrus.WithError(err).WithFields(logrus.Fields{"room_id": roomID, "server": s}).
+				Warn("RequestBackfill: LoadAndVerify failed for batch")
 			continue // try the next server
 		}
 		for _, res := range loadResults {
@@ -90,8 +105,15 @@ func RequestBackfill(ctx context.Context, origin spec.ServerName, b BackfillRequ
 				switch {
 				case res.Error == nil, errors.As(res.Error, &errCase0):
 				case errors.As(res.Error, &errCase1), errors.As(res.Error, &errCase2):
+					logrus.WithError(res.Error).WithFields(logrus.Fields{
+						"room_id": roomID, "server": s, "event_id": backfillEventID(res.Event),
+					}).Warn("RequestBackfill: dropping event (auth failure)")
 					continue
 				default:
+					logrus.WithError(res.Error).WithFields(logrus.Fields{
+						"room_id": roomID, "server": s,
+						"event_id": backfillEventID(res.Event),
+					}).Warn("RequestBackfill: dropping event (error)")
 					continue
 				}
 			}
