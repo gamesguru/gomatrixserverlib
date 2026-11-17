@@ -21,6 +21,7 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 
 	"github.com/tidwall/gjson"
@@ -300,6 +301,15 @@ func referenceOfEvent(eventJSON []byte, roomVersion RoomVersion) (eventReference
 	verImpl, err := GetRoomVersion(roomVersion)
 	if err != nil {
 		return eventReference{}, err
+	}
+	if hook := getEventIDHook(); hook != nil && verImpl.EventFormat() == EventFormatV2 {
+		eventID, err := hook(roomVersion, eventJSON)
+		if err == nil {
+			return eventReference{eventID, eventHashFromEventID(eventID)}, nil
+		}
+		if !errors.Is(err, ErrUseBuiltin) {
+			return eventReference{}, err
+		}
 	}
 	redactedJSON, err := verImpl.RedactEventJSON(eventJSON)
 	if err != nil {
