@@ -332,6 +332,102 @@ func keyIsStaler(res, than PublicKeyLookupResult) bool {
 		res.ValidUntilTS < than.ValidUntilTS
 }
 
+// KeyPrefetcher is implemented by verifiers which can warm their key store for
+// many requests in one go, so that verifying them one by one finds every key
+// already stored instead of fetching each separately.
+type KeyPrefetcher interface {
+	// PrefetchKeys fetches and stores the keys needed by the requests. It is an
+	// optimisation: it never reports failure, and verification works without
+	// it. Only ServerName, AtTS and the signatures in Message are used, so the
+	// message need not be redacted.
+	PrefetchKeys(ctx context.Context, requests []VerifyJSONRequest)
+}
+
+// prefetchChunkSize bounds how many (server, key ID) pairs one fetcher call
+// asks for, so a very large batch does not become one enormous query.
+const prefetchChunkSize = 100
+
+// PrefetchKeys implements KeyPrefetcher. It merges all the requests, asks the
+// fetchers for the keys that are not already stored in as few calls as it can,
+// and stores what they return. Like VerifyJSONs, a live key only satisfies a
+// request if it is valid for long enough, so a stale answer from one fetcher
+// leaves the key for the next.
+func (k KeyRing) PrefetchKeys(ctx context.Context, requests []VerifyJSONRequest) {
+	keyRequests := map[PublicKeyLookupRequest]spec.Timestamp{}
+	for i := range requests {
+		ids, err := ListKeyIDs(string(requests[i].ServerName), requests[i].Message)
+		if err != nil {
+			continue
+		}
+		for _, keyID := range ids {
+			if !k.isAlgorithmSupported(keyID) {
+				continue
+			}
+			req := PublicKeyLookupRequest{requests[i].ServerName, keyID}
+			if ts, ok := keyRequests[req]; !ok || ts < requests[i].AtTS {
+				keyRequests[req] = requests[i].AtTS
+			}
+		}
+	}
+	if len(keyRequests) == 0 {
+		return
+	}
+
+	// The key database may remove entries from the map it is given, so give it
+	// a copy and keep the original timestamps.
+	lookup := make(map[PublicKeyLookupRequest]spec.Timestamp, len(keyRequests))
+	for req, ts := range keyRequests {
+		lookup[req] = ts
+	}
+	fromDatabase, err := k.KeyDatabase.FetchKeys(ctx, lookup)
+	if err != nil {
+		return
+	}
+	now := spec.AsTimestamp(time.Now())
+	for req, res := range fromDatabase {
+		if res.ExpiredTS != PublicKeyNotExpired ||
+			(now < res.ValidUntilTS && res.ValidUntilTS >= keyRequests[req]) {
+			delete(keyRequests, req)
+		}
+	}
+
+	logger := internal.GetLogger(ctx)
+	fetched := map[PublicKeyLookupRequest]PublicKeyLookupResult{}
+	for _, fetcher := range k.KeyFetchers {
+		if len(keyRequests) == 0 {
+			break
+		}
+		pending := make([]PublicKeyLookupRequest, 0, len(keyRequests))
+		for req := range keyRequests {
+			pending = append(pending, req)
+		}
+		for start := 0; start < len(pending); start += prefetchChunkSize {
+			end := min(start+prefetchChunkSize, len(pending))
+			chunk := make(map[PublicKeyLookupRequest]spec.Timestamp, end-start)
+			for _, req := range pending[start:end] {
+				chunk[req] = keyRequests[req]
+			}
+			logger.WithField("fetcher", fetcher.FetcherName()).WithField("num_key_requests", len(chunk)).
+				Debug("Prefetching keys from fetcher")
+			got, err := fetcher.FetchKeys(ctx, chunk)
+			if err != nil {
+				continue
+			}
+			for req, res := range got {
+				if prev, ok := fetched[req]; !ok || !keyIsStaler(res, prev) {
+					fetched[req] = res
+				}
+				if res.ExpiredTS != PublicKeyNotExpired || res.ValidUntilTS >= keyRequests[req] {
+					delete(keyRequests, req)
+				}
+			}
+		}
+	}
+	if len(fetched) > 0 {
+		_ = k.KeyDatabase.StoreKeys(ctx, fetched)
+	}
+}
+
 func (k *KeyRing) isAlgorithmSupported(keyID KeyID) bool {
 	return strings.HasPrefix(string(keyID), "ed25519:")
 }

@@ -23,6 +23,8 @@ import (
 	"testing"
 
 	"golang.org/x/crypto/ed25519"
+
+	"github.com/gamesguru/gomatrixserverlib/spec"
 )
 
 func TestVerifyEventSignatureTestVectors(t *testing.T) {
@@ -471,5 +473,61 @@ func TestVerifyAllEventSignaturesForInvite(t *testing.T) {
 	}
 	if servers[1] != "bobserver" {
 		t.Errorf("Verify server 1: got %s, want %s", servers[1], "bobserver")
+	}
+}
+
+// prefetchingVerifier records what VerifyAllEventSignatures asks it to prefetch.
+type prefetchingVerifier struct {
+	prefetched [][]VerifyJSONRequest
+}
+
+func (v *prefetchingVerifier) PrefetchKeys(_ context.Context, requests []VerifyJSONRequest) {
+	v.prefetched = append(v.prefetched, requests)
+}
+
+func (v *prefetchingVerifier) VerifyJSONs(_ context.Context, requests []VerifyJSONRequest) ([]VerifyJSONResult, error) {
+	return make([]VerifyJSONResult, len(requests)), nil
+}
+
+func TestVerifyAllEventSignaturesPrefetchesKeysOnce(t *testing.T) {
+	newEvent := func(server string) PDU {
+		eventJSON := []byte(`{
+			"type": "m.room.name",
+			"state_key": "",
+			"event_id": "$` + server + `:` + server + `",
+			"room_id": "!test:localhost",
+			"sender": "@user:` + server + `",
+			"origin": "` + server + `",
+			"content": {"name": "Hello World"},
+			"origin_server_ts": 123456
+		}`)
+		event, err := MustGetRoomVersion(RoomVersionV1).NewEventFromTrustedJSON(eventJSON, false)
+		if err != nil {
+			t.Fatal(err)
+		}
+		return event
+	}
+	verifier := &prefetchingVerifier{}
+	events := []PDU{newEvent("one.example"), newEvent("two.example"), newEvent("three.example")}
+	for _, err := range VerifyAllEventSignatures(context.Background(), events, verifier, UserIDForSenderTest) {
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+	// One prefetch covering every event, instead of a fetch per event.
+	if len(verifier.prefetched) != 1 {
+		t.Fatalf("expected one prefetch, got %d", len(verifier.prefetched))
+	}
+	servers := map[spec.ServerName]bool{}
+	for _, rq := range verifier.prefetched[0] {
+		servers[rq.ServerName] = true
+		if rq.AtTS != 123456 {
+			t.Errorf("prefetch time: got %d, want 123456", rq.AtTS)
+		}
+	}
+	for _, want := range []spec.ServerName{"one.example", "two.example", "three.example"} {
+		if !servers[want] {
+			t.Errorf("expected a prefetch request for %s, got %v", want, servers)
+		}
 	}
 }

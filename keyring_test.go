@@ -503,3 +503,119 @@ func TestVerifyJSONsDoesNotAskNextFetcherWhenAnswerIsFresh(t *testing.T) {
 		t.Fatalf("expected only the first fetcher to be asked, got %d and %d", first.calls, second.calls)
 	}
 }
+
+// recordingKeyFetcher answers every request with a key valid until validUntilTS
+// and records how many pairs each call asked for.
+type recordingKeyFetcher struct {
+	name         string
+	validUntilTS spec.Timestamp
+	callSizes    []int
+	asked        []PublicKeyLookupRequest
+}
+
+func (f *recordingKeyFetcher) FetcherName() string { return f.name }
+
+func (f *recordingKeyFetcher) FetchKeys(
+	_ context.Context, requests map[PublicKeyLookupRequest]spec.Timestamp,
+) (map[PublicKeyLookupRequest]PublicKeyLookupResult, error) {
+	f.callSizes = append(f.callSizes, len(requests))
+	results := map[PublicKeyLookupRequest]PublicKeyLookupResult{}
+	for req := range requests {
+		f.asked = append(f.asked, req)
+		vk := VerifyKey{}
+		if err := vk.Key.Decode("2UwTWD4+tgTgENV7znGGNqhAOGY+BW1mRAnC6W6FBQg"); err != nil {
+			return nil, err
+		}
+		results[req] = PublicKeyLookupResult{
+			VerifyKey: vk, ValidUntilTS: f.validUntilTS, ExpiredTS: PublicKeyNotExpired,
+		}
+	}
+	return results, nil
+}
+
+// storingKeyDatabase caches nothing but records what is stored.
+type storingKeyDatabase struct {
+	emptyKeyDatabase
+	stored map[PublicKeyLookupRequest]PublicKeyLookupResult
+}
+
+func (d *storingKeyDatabase) StoreKeys(
+	_ context.Context, keys map[PublicKeyLookupRequest]PublicKeyLookupResult,
+) error {
+	if d.stored == nil {
+		d.stored = map[PublicKeyLookupRequest]PublicKeyLookupResult{}
+	}
+	for req, res := range keys {
+		d.stored[req] = res
+	}
+	return nil
+}
+
+func signedBy(server string) VerifyJSONRequest {
+	return VerifyJSONRequest{
+		ServerName: spec.ServerName(server),
+		Message:    []byte(`{"signatures":{"` + server + `":{"ed25519:k":"sig"}}}`),
+		AtTS:       1000,
+	}
+}
+
+func TestPrefetchKeysBatchesAcrossServers(t *testing.T) {
+	var requests []VerifyJSONRequest
+	for i := 0; i < 250; i++ {
+		// Several events from the same server must not repeat its request.
+		requests = append(requests, signedBy(fmt.Sprintf("server%d.example", i%250)))
+		requests = append(requests, signedBy(fmt.Sprintf("server%d.example", i%250)))
+	}
+	fetcher := &recordingKeyFetcher{name: "notary", validUntilTS: 5000}
+	db := &storingKeyDatabase{}
+	KeyRing{[]KeyFetcher{fetcher}, db}.PrefetchKeys(context.Background(), requests)
+
+	// 250 distinct keys in chunks of at most prefetchChunkSize, not one call
+	// per event.
+	if len(fetcher.callSizes) != 3 {
+		t.Fatalf("expected 3 fetcher calls, got %v", fetcher.callSizes)
+	}
+	total := 0
+	for _, size := range fetcher.callSizes {
+		if size > prefetchChunkSize {
+			t.Fatalf("a call asked for %d keys, more than %d", size, prefetchChunkSize)
+		}
+		total += size
+	}
+	if total != 250 {
+		t.Fatalf("expected 250 distinct keys asked for, got %d", total)
+	}
+	if len(db.stored) != 250 {
+		t.Fatalf("expected 250 keys stored, got %d", len(db.stored))
+	}
+}
+
+func TestPrefetchKeysAsksNextFetcherOnlyForStaleKeys(t *testing.T) {
+	requests := []VerifyJSONRequest{signedBy("a.example"), signedBy("b.example")}
+	stale := &recordingKeyFetcher{name: "notary", validUntilTS: 500}
+	next := &recordingKeyFetcher{name: "origin", validUntilTS: 5000}
+	db := &storingKeyDatabase{}
+	KeyRing{[]KeyFetcher{stale, next}, db}.PrefetchKeys(context.Background(), requests)
+
+	if len(stale.callSizes) != 1 || len(next.callSizes) != 1 || next.callSizes[0] != 2 {
+		t.Fatalf("expected the stale answers to be fetched again, got %v then %v", stale.callSizes, next.callSizes)
+	}
+	for _, res := range db.stored {
+		if res.ValidUntilTS != 5000 {
+			t.Fatalf("expected the fresher key to be stored, got %d", res.ValidUntilTS)
+		}
+	}
+}
+
+func TestPrefetchKeysSkipsUnsignedAndUnsupported(t *testing.T) {
+	fetcher := &recordingKeyFetcher{name: "notary", validUntilTS: 5000}
+	requests := []VerifyJSONRequest{
+		{ServerName: "a.example", Message: []byte(`{}`), AtTS: 1},
+		{ServerName: "a.example", Message: []byte(`not json`), AtTS: 1},
+		{ServerName: "a.example", Message: []byte(`{"signatures":{"a.example":{"rsa:1":"x"}}}`), AtTS: 1},
+	}
+	KeyRing{[]KeyFetcher{fetcher}, &storingKeyDatabase{}}.PrefetchKeys(context.Background(), requests)
+	if len(fetcher.callSizes) != 0 {
+		t.Fatalf("expected no fetch, got %v", fetcher.callSizes)
+	}
+}

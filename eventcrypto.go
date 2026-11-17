@@ -32,11 +32,68 @@ import (
 )
 
 func VerifyAllEventSignatures(ctx context.Context, events []PDU, verifier JSONVerifier, userIDForSender spec.UserIDForSender) []error {
+	// Verifying events one at a time would fetch each missing server key
+	// separately. Warm the key store for all of them first, in a few batches.
+	if prefetcher, ok := verifier.(KeyPrefetcher); ok && len(events) > 1 {
+		prefetcher.PrefetchKeys(ctx, prefetchRequests(events, userIDForSender))
+	}
 	errors := make([]error, 0, len(events))
 	for _, e := range events {
 		errors = append(errors, VerifyEventSignatures(ctx, e, verifier, userIDForSender))
 	}
 	return errors
+}
+
+// prefetchRequests lists the key requests that verifying events will need, for
+// KeyPrefetcher.PrefetchKeys. It is best effort and only a hint: an event it
+// cannot work out the signers of is skipped and left to VerifyEventSignatures
+// to report, and pseudo ID events are verified against their own sender ID, so
+// they need no server keys.
+func prefetchRequests(events []PDU, userIDForSender spec.UserIDForSender) []VerifyJSONRequest {
+	var requests []VerifyJSONRequest
+	for _, e := range events {
+		if userIDForSender == nil || e.Version() == RoomVersionPseudoIDs {
+			continue
+		}
+		verImpl, err := GetRoomVersion(e.Version())
+		if err != nil {
+			continue
+		}
+		servers := map[spec.ServerName]struct{}{}
+		if sender, err := userIDForSender(e.RoomID(), e.SenderID()); err == nil && sender != nil {
+			servers[sender.Domain()] = struct{}{}
+		}
+		if verImpl.EventIDFormat() == EventIDFormatV1 {
+			if _, server, err := SplitID('$', e.EventID()); err == nil {
+				servers[server] = struct{}{}
+			}
+		}
+		if e.Type() == spec.MRoomMember {
+			if membership, err := e.Membership(); err == nil {
+				switch membership {
+				case spec.Invite:
+					if e.StateKey() != nil {
+						if _, server, err := SplitID('@', *e.StateKey()); err == nil {
+							servers[server] = struct{}{}
+						}
+					}
+				case spec.Join:
+					if auth, err := verImpl.RestrictedJoinServername(e.Content()); err == nil && auth != "" {
+						servers[auth] = struct{}{}
+					}
+				}
+			}
+		}
+		for server := range servers {
+			requests = append(requests, VerifyJSONRequest{
+				Message:              e.JSON(),
+				AtTS:                 e.OriginServerTS(),
+				ServerName:           server,
+				ValidityCheckingFunc: verImpl.SignatureValidityCheck,
+			})
+		}
+	}
+	return requests
 }
 
 func VerifyEventSignatures(ctx context.Context, e PDU, verifier JSONVerifier, userIDForSender spec.UserIDForSender) error {
