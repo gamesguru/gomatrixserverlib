@@ -283,10 +283,19 @@ func (k KeyRing) VerifyJSONs(ctx context.Context, requests []VerifyJSONRequest) 
 		fetcherLogger.WithField("num_keys_fetched", len(fetched)).
 			Debug("Got keys from fetcher")
 
-		// Hold the new keys and remove them from the request queue.
+		// Hold the new keys. A live key only satisfies the request if it is
+		// valid for as long as we need it: a perspective server may answer
+		// from its own cache with a window that ended before the time we
+		// asked for, and that must not stop us asking the next fetcher (for
+		// example the origin itself). Expired keys never change, so they are
+		// final.
 		for req, res := range fetched {
-			keysFetched[req] = res
-			delete(keyRequests, req)
+			if prev, ok := keysFetched[req]; !ok || !keyIsStaler(res, prev) {
+				keysFetched[req] = res
+			}
+			if res.ExpiredTS != PublicKeyNotExpired || res.ValidUntilTS >= keyRequests[req] {
+				delete(keyRequests, req)
+			}
 		}
 	}
 
@@ -313,6 +322,14 @@ func (k KeyRing) VerifyJSONs(ctx context.Context, requests []VerifyJSONRequest) 
 	}
 
 	return results, nil
+}
+
+// keyIsStaler reports whether a live key's validity window ends before that of
+// another live copy of the same key, so that an older answer never replaces a
+// newer one.
+func keyIsStaler(res, than PublicKeyLookupResult) bool {
+	return res.ExpiredTS == PublicKeyNotExpired && than.ExpiredTS == PublicKeyNotExpired &&
+		res.ValidUntilTS < than.ValidUntilTS
 }
 
 func (k *KeyRing) isAlgorithmSupported(keyID KeyID) bool {

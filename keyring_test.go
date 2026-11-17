@@ -421,3 +421,85 @@ func TestJSONVerifierSelf_VerifyJSONs(t *testing.T) {
 		})
 	}
 }
+
+// fixedKeyFetcher answers every request with a fixed key and records its calls.
+type fixedKeyFetcher struct {
+	name         string
+	validUntilTS spec.Timestamp
+	calls        int
+}
+
+func (f *fixedKeyFetcher) FetcherName() string { return f.name }
+
+func (f *fixedKeyFetcher) FetchKeys(
+	_ context.Context, requests map[PublicKeyLookupRequest]spec.Timestamp,
+) (map[PublicKeyLookupRequest]PublicKeyLookupResult, error) {
+	f.calls++
+	results := map[PublicKeyLookupRequest]PublicKeyLookupResult{}
+	for req := range requests {
+		vk := VerifyKey{}
+		if err := vk.Key.Decode("2UwTWD4+tgTgENV7znGGNqhAOGY+BW1mRAnC6W6FBQg"); err != nil {
+			return nil, err
+		}
+		results[req] = PublicKeyLookupResult{
+			VerifyKey: vk, ValidUntilTS: f.validUntilTS, ExpiredTS: PublicKeyNotExpired,
+		}
+	}
+	return results, nil
+}
+
+// emptyKeyDatabase caches nothing.
+type emptyKeyDatabase struct{}
+
+func (emptyKeyDatabase) FetcherName() string { return "emptyKeyDatabase" }
+func (emptyKeyDatabase) FetchKeys(
+	context.Context, map[PublicKeyLookupRequest]spec.Timestamp,
+) (map[PublicKeyLookupRequest]PublicKeyLookupResult, error) {
+	return map[PublicKeyLookupRequest]PublicKeyLookupResult{}, nil
+}
+func (emptyKeyDatabase) StoreKeys(context.Context, map[PublicKeyLookupRequest]PublicKeyLookupResult) error {
+	return nil
+}
+
+func TestVerifyJSONsAsksNextFetcherWhenAnswerIsTooStale(t *testing.T) {
+	// A perspective server can answer from its cache with a validity window
+	// that ended before the time we need. That must not count as an answer:
+	// the next fetcher is asked, and its fresher key verifies the message.
+	const atTS = spec.Timestamp(1493142432964)
+	stale := &fixedKeyFetcher{name: "stale-notary", validUntilTS: atTS - 1}
+	fresh := &fixedKeyFetcher{name: "origin", validUntilTS: atTS + 1000}
+	k := KeyRing{[]KeyFetcher{stale, fresh}, emptyKeyDatabase{}}
+	results, err := k.VerifyJSONs(context.Background(), []VerifyJSONRequest{{
+		ServerName:           "localhost:8800",
+		Message:              []byte(testKeys),
+		AtTS:                 atTS,
+		ValidityCheckingFunc: StrictValiditySignatureCheck,
+	}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if stale.calls != 1 || fresh.calls != 1 {
+		t.Fatalf("expected both fetchers to be asked once, got %d and %d", stale.calls, fresh.calls)
+	}
+	if len(results) != 1 || results[0].Error != nil {
+		t.Fatalf("expected the fresher key to verify, got %#v", results)
+	}
+}
+
+func TestVerifyJSONsDoesNotAskNextFetcherWhenAnswerIsFresh(t *testing.T) {
+	const atTS = spec.Timestamp(1493142432964)
+	first := &fixedKeyFetcher{name: "notary", validUntilTS: atTS + 1000}
+	second := &fixedKeyFetcher{name: "origin", validUntilTS: atTS + 1000}
+	k := KeyRing{[]KeyFetcher{first, second}, emptyKeyDatabase{}}
+	if _, err := k.VerifyJSONs(context.Background(), []VerifyJSONRequest{{
+		ServerName:           "localhost:8800",
+		Message:              []byte(testKeys),
+		AtTS:                 atTS,
+		ValidityCheckingFunc: StrictValiditySignatureCheck,
+	}}); err != nil {
+		t.Fatal(err)
+	}
+	if first.calls != 1 || second.calls != 0 {
+		t.Fatalf("expected only the first fetcher to be asked, got %d and %d", first.calls, second.calls)
+	}
+}
