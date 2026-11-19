@@ -256,6 +256,7 @@ func (k KeyRing) VerifyJSONs(ctx context.Context, requests []VerifyJSONRequest) 
 		}
 	}
 
+	var fetchErrors []string
 	for _, fetcher := range k.KeyFetchers {
 		// If we have all of the keys that we need now then we can
 		// break the loop.
@@ -273,10 +274,12 @@ func (k KeyRing) VerifyJSONs(ctx context.Context, requests []VerifyJSONRequest) 
 
 		fetched, err := fetcher.FetchKeys(ctx, keyRequests)
 		if err != nil {
+			fetchErrors = append(fetchErrors, fetcher.FetcherName()+": "+err.Error())
 			continue
 		}
 
 		if len(fetched) == 0 {
+			fetchErrors = append(fetchErrors, fetcher.FetcherName()+": returned no keys")
 			continue
 		}
 
@@ -307,8 +310,9 @@ func (k KeyRing) VerifyJSONs(ctx context.Context, requests []VerifyJSONRequest) 
 		}
 
 		logger.WithFields(logrus.Fields{
-			"servers":  requestedServers,
-			"fetchers": len(k.KeyFetchers),
+			"servers":      requestedServers,
+			"fetchers":     len(k.KeyFetchers),
+			"fetch_errors": fetchErrors,
 		}).Warn("failed to fetch keys for some servers")
 	}
 
@@ -411,6 +415,8 @@ func (k KeyRing) PrefetchKeys(ctx context.Context, requests []VerifyJSONRequest)
 				Debug("Prefetching keys from fetcher")
 			got, err := fetcher.FetchKeys(ctx, chunk)
 			if err != nil {
+				logger.WithError(err).WithField("fetcher", fetcher.FetcherName()).
+					Warn("Prefetching keys from fetcher failed")
 				continue
 			}
 			for req, res := range got {
@@ -602,6 +608,100 @@ type DirectKeyFetcher struct {
 	Client            KeyClient
 	IsLocalServerName func(server spec.ServerName) bool
 	LocalPublicKey    spec.Base64Bytes
+	// Backoff remembers servers whose keys could not be fetched, so that a
+	// server that is down is not asked again, at 30 seconds a time, by every
+	// event that needs its keys. If nil, a backoff shared by the process is used.
+	Backoff *KeyFetchBackoff
+}
+
+// Key fetch backoff: the first failure to fetch a server's keys skips the server
+// for keyFetchBackoffBase, and every further failure doubles that, up to
+// keyFetchBackoffMax. A success clears it. A skipped server's keys are simply
+// not returned, which is what a failed fetch returns anyway; they are asked for
+// again once the backoff has passed.
+const (
+	keyFetchBackoffBase = time.Minute
+	keyFetchBackoffMax  = time.Hour
+	// keyFetchBackoffEntries bounds the memory used by servers that failed once and
+	// were never asked about again.
+	keyFetchBackoffEntries = 4096
+)
+
+type keyFetchBackoffState struct {
+	until    time.Time
+	failures uint
+}
+
+// KeyFetchBackoff is a set of servers that recently failed to serve their keys.
+// The zero value is ready to use and it is safe for concurrent use.
+type KeyFetchBackoff struct {
+	mu      sync.Mutex
+	servers map[spec.ServerName]keyFetchBackoffState
+	// now is replaced by tests.
+	now func() time.Time
+}
+
+var defaultKeyFetchBackoff = &KeyFetchBackoff{}
+
+func (b *KeyFetchBackoff) clock() time.Time {
+	if b.now != nil {
+		return b.now()
+	}
+	return time.Now()
+}
+
+// BackingOff reports whether the server's keys should not be asked for yet.
+func (b *KeyFetchBackoff) BackingOff(server spec.ServerName) bool {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	state, ok := b.servers[server]
+	return ok && b.clock().Before(state.until)
+}
+
+// Failure records a failed fetch and starts or extends the backoff.
+func (b *KeyFetchBackoff) Failure(server spec.ServerName) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	now := b.clock()
+	if b.servers == nil {
+		b.servers = map[spec.ServerName]keyFetchBackoffState{}
+	}
+	if len(b.servers) >= keyFetchBackoffEntries {
+		for name, state := range b.servers {
+			if !now.Before(state.until) {
+				delete(b.servers, name)
+			}
+		}
+		if len(b.servers) >= keyFetchBackoffEntries {
+			// Everything is still backing off; make room for the newest failure.
+			for name := range b.servers {
+				delete(b.servers, name)
+				break
+			}
+		}
+	}
+	state := b.servers[server]
+	state.failures++
+	delay := keyFetchBackoffMax
+	if shift := state.failures - 1; shift < 16 { //nolint:mnd
+		delay = min(keyFetchBackoffBase<<shift, keyFetchBackoffMax)
+	}
+	state.until = now.Add(delay)
+	b.servers[server] = state
+}
+
+// Success forgets any backoff for the server.
+func (b *KeyFetchBackoff) Success(server spec.ServerName) {
+	b.mu.Lock()
+	defer b.mu.Unlock()
+	delete(b.servers, server)
+}
+
+func (d *DirectKeyFetcher) backoff() *KeyFetchBackoff {
+	if d.Backoff != nil {
+		return d.Backoff
+	}
+	return defaultKeyFetchBackoff
 }
 
 // FetcherName implements KeyFetcher.
@@ -667,14 +767,23 @@ func (d *DirectKeyFetcher) FetchKeys(
 	worker := func(ch <-chan spec.ServerName) {
 		defer wait.Done()
 		for server := range ch {
+			if d.backoff().BackingOff(server) {
+				// It failed recently, and asking again costs two timeouts.
+				continue
+			}
 			serverResults, err := d.fetchKeysForServer(ctx, server)
 			if err != nil {
 				serverResults, err = d.fetchNotaryKeysForServer(ctx, server)
 				if err != nil {
+					// A cancelled request says nothing about the server.
+					if ctx.Err() == nil {
+						d.backoff().Failure(server)
+					}
 					// TODO: Should we actually be erroring here? or should we just drop those keys from the result map?
 					continue
 				}
 			}
+			d.backoff().Success(server)
 			resultsMutex.Lock()
 			for req, keys := range serverResults {
 				results[req] = keys
